@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Live Q&A — Tanya Aja!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#110F1A; --ink:#0E0C14; --paper:#FFF8EC;
+  --lime:#C6FF3D; --pink:#FF5FA2; --lav:#B79CFF; --cyan:#5CE1E6; --orange:#FFB443; --yellow:#FFE94A;
+  --radius:26px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--paper); background:var(--bg);
+  overflow-x:hidden; -webkit-font-smoothing:antialiased;
+}
+/* ---------- background vibes ---------- */
+.bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.bg::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:44px 44px; mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%)}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;animation:drift 18s ease-in-out infinite alternate}
+.blob.b1{width:520px;height:520px;background:var(--pink);top:-140px;left:-120px}
+.blob.b2{width:460px;height:460px;background:var(--lav);bottom:-160px;right:-80px;animation-delay:-6s}
+.blob.b3{width:340px;height:340px;background:var(--cyan);top:40%;left:45%;opacity:.25;animation-delay:-11s}
+@keyframes drift{to{transform:translate(80px,60px) scale(1.15)}}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.07;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.view{position:relative;z-index:2;display:none;min-height:100%}
+.view.on{display:flex}
+
+/* ---------- shared bits ---------- */
+.brut{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
+.btn{font:800 16px 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;border-radius:999px;padding:14px 24px;color:var(--ink);
+  border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.btn.lime{background:var(--lime)} .btn.pink{background:var(--pink)} .btn.lav{background:var(--lav)} .btn.paper{background:var(--paper)} .btn.ghost{background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:4px 4px 0 rgba(255,255,255,.25)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.display{font-family:'Unbounded',sans-serif;letter-spacing:-.02em}
+.sticker{display:inline-block;font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;padding:6px 12px;border-radius:999px;color:var(--ink);border:2px solid var(--ink);transform:rotate(-3deg)}
+.dot{width:9px;height:9px;border-radius:50%;background:#666;display:inline-block}
+.dot.ok{background:var(--lime);box-shadow:0 0 10px var(--lime)}
+.dot.bad{background:#ff4d4d}
+
+/* ---------- landing ---------- */
+#landing{align-items:center;justify-content:center;padding:24px;text-align:center}
+.land-card{max-width:560px;width:100%}
+.land-card h1{font-size:clamp(44px,9vw,84px);line-height:.95;margin:18px 0 14px}
+.land-card h1 span{color:var(--lime);display:inline-block;transform:rotate(-4deg)}
+.land-card p{opacity:.8;font-size:17px;margin-bottom:30px}
+.land-actions{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.join-row{display:flex;gap:10px}
+.join-row input{flex:1;min-width:0}
+input.field,textarea.field{width:100%;font:600 17px 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:18px;padding:14px 16px;outline:none;box-shadow:4px 4px 0 var(--ink)}
+input.field:focus,textarea.field:focus{box-shadow:4px 4px 0 var(--pink)}
+
+/* ---------- host / display ---------- */
+#host{height:100vh;gap:0;overflow:hidden}
+.side{width:340px;flex-shrink:0;padding:28px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;border-right:2px dashed rgba(255,255,255,.12)}
+.side h2{font-size:30px;line-height:1.05}
+.side h2 em{font-style:normal;color:var(--pink)}
+.qr-wrap{background:var(--paper);border-radius:var(--radius);padding:18px;text-align:center;color:var(--ink);transform:rotate(-1.5deg)}
+#qr{display:flex;justify-content:center}
+#qr img,#qr canvas{width:100%!important;height:auto!important;max-width:250px;image-rendering:pixelated}
+.qr-wrap .scan{font:800 15px 'Unbounded',system-ui,sans-serif;margin-top:10px}
+.room-code{font:900 34px 'Unbounded',system-ui,sans-serif;letter-spacing:.12em;color:var(--ink);background:var(--yellow);border-radius:14px;padding:4px 10px;margin-top:8px;display:inline-block}
+.join-url{font-size:12px;word-break:break-all;opacity:.7;margin-top:6px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{border-radius:20px;padding:14px;color:var(--ink)}
+.stat b{font:900 34px 'Unbounded',system-ui,sans-serif;display:block;line-height:1}
+.stat span{font-size:13px;font-weight:700}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:13px;opacity:.85}
+.side-foot .row{display:flex;gap:8px;flex-wrap:wrap}
+.side-foot .btn{padding:9px 14px;font-size:13px}
+.conn{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:24px 34px 8px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar h1{font-size:clamp(28px,3.2vw,46px)}
+.topbar h1 .live{display:inline-flex;align-items:center;gap:8px;font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;background:#ff3b5c;color:#fff;padding:6px 12px;border-radius:999px;vertical-align:middle;margin-left:10px;border:2px solid var(--ink)}
+.topbar h1 .live::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.hint{font-size:14px;opacity:.7}
+.board{flex:1;overflow-y:auto;padding:18px 34px 60px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:26px 22px;scroll-behavior:smooth}
+.board::-webkit-scrollbar{width:8px}.board::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:9px}
+.empty{margin:auto;text-align:center;opacity:.85}
+.empty .big{font-size:90px;animation:bob 2.4s ease-in-out infinite}
+.empty h3{font:800 28px 'Unbounded',system-ui,sans-serif;margin:10px 0 6px}
+
+/* chat bubble */
+.bubble{position:relative;max-width:440px;min-width:220px;flex:0 1 auto;padding:18px 20px 16px;border-radius:var(--radius) var(--radius) var(--radius) 8px;
+  color:var(--ink);cursor:pointer;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);
+  transform:rotate(var(--rot,0deg));animation:pop-in .55s cubic-bezier(.2,1.6,.4,1) both, bob 4s ease-in-out infinite;animation-delay:0s,var(--bd,0s);
+  transition:box-shadow .15s, filter .15s}
+.bubble::after{content:"";position:absolute;left:-3px;bottom:-17px;width:26px;height:20px;background:inherit;border-left:3px solid var(--ink);border-bottom:3px solid var(--ink);
+  clip-path:polygon(0 0,100% 0,0 100%);border-radius:0 0 0 4px}
+.bubble:hover{box-shadow:10px 10px 0 var(--ink);filter:saturate(1.15)}
+.bubble .who{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:800 16px 'Unbounded',system-ui,sans-serif;background:var(--ink);color:var(--paper);flex-shrink:0;font-size:17px}
+.who .name{font-weight:800;font-size:15px;line-height:1.1}
+.who .time{font-size:12px;font-weight:600;opacity:.65}
+.bubble .txt{font-weight:700;font-size:21px;line-height:1.32;word-wrap:break-word;overflow-wrap:anywhere}
+.bubble.sm .txt{font-size:17px}
+.bubble .x{position:absolute;top:-12px;right:-12px;width:30px;height:30px;border-radius:50%;background:var(--paper);border:3px solid var(--ink);font:800 14px sans-serif;
+  display:none;place-items:center;cursor:pointer;color:var(--ink)}
+.bubble:hover .x{display:grid}
+.bubble.new-badge::before{content:"BARU ✨";position:absolute;top:-14px;left:18px;font:800 11px 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--yellow);border:2px solid var(--ink);padding:3px 8px;border-radius:999px}
+.bubble.leaving{animation:shrink .35s ease forwards}
+.bubble .votes{position:absolute;right:16px;bottom:-16px;display:none;align-items:center;gap:4px;font:900 16px 'Unbounded',system-ui,sans-serif;background:var(--ink);color:var(--yellow);
+  border:3px solid var(--ink);padding:4px 11px;border-radius:999px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+.bubble .votes.on{display:inline-flex}
+.bubble .votes.bump{animation:bump .45s cubic-bezier(.2,1.8,.4,1)}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.45) rotate(-8deg)}100%{transform:scale(1)}}
+.bubble.top::before{content:"👑 TERPOPULER";position:absolute;top:-14px;left:18px;font:800 11px 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--pink);color:var(--ink);border:2px solid var(--ink);padding:3px 8px;border-radius:999px}
+.bubble.top.new-badge::before{content:"👑 TERPOPULER"}
+.spot .bubble .votes{font-size:24px;bottom:-22px;padding:6px 16px}
+@keyframes pop-in{0%{opacity:0;transform:scale(.3) rotate(-12deg)}100%{opacity:1;transform:scale(1) rotate(var(--rot,0deg))}}
+@keyframes bob{0%,100%{translate:0 0}50%{translate:0 -7px}}
+@keyframes shrink{to{opacity:0;transform:scale(.4)}}
+
+/* spotlight */
+.spot{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;gap:34px;background:rgba(10,8,16,.82);backdrop-filter:blur(8px)}
+.spot.on{display:flex}
+.spot .label{font:800 16px 'Plus Jakarta Sans',system-ui,sans-serif;background:#ff3b5c;color:#fff;border:3px solid var(--ink);padding:8px 16px;border-radius:999px;box-shadow:4px 4px 0 var(--ink);animation:wiggle 1.2s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.spot .bubble{max-width:min(1000px,86vw);min-width:min(520px,86vw);padding:34px 40px 30px;animation:spot-in .5s cubic-bezier(.2,1.5,.4,1) both;cursor:default;--rot:0deg}
+.spot .bubble .txt{font-size:clamp(28px,3.4vw,50px);line-height:1.22}
+.spot .bubble .av{width:52px;height:52px;font-size:24px}
+.spot .bubble .name{font-size:22px}.spot .bubble .time{font-size:15px}
+.spot .bubble::after{width:40px;height:30px;bottom:-26px}
+.spot .bubble.shake{animation:shake .45s ease-in-out both}
+@keyframes spot-in{0%{opacity:0;transform:scale(.5)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{0%{transform:scale(1)}20%{transform:scale(1.06) rotate(-2deg)}40%{transform:scale(1.1) rotate(2deg)}60%{transform:scale(1.14) rotate(-3deg)}80%{transform:scale(1.2) rotate(3deg)}100%{transform:scale(1.28);filter:brightness(1.4)}}
+.spot .acts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.spot .acts .btn{font-size:19px;padding:16px 28px}
+kbd{font:700 12px monospace;background:rgba(0,0,0,.15);border-radius:6px;padding:2px 6px;margin-left:4px}
+
+/* explosion */
+.fx{position:fixed;inset:0;pointer-events:none;z-index:80;overflow:hidden}
+.shard{position:absolute;border:2.5px solid var(--ink);will-change:transform,opacity}
+.emo{position:absolute;font-size:38px;will-change:transform,opacity}
+.ring{position:absolute;border-radius:50%;border:8px solid var(--yellow);will-change:transform,opacity}
+.pow{position:absolute;font:900 110px 'Unbounded',system-ui,sans-serif;color:var(--yellow);-webkit-text-stroke:5px var(--ink);text-shadow:8px 8px 0 var(--ink);will-change:transform,opacity;white-space:nowrap}
+.flash{position:fixed;inset:0;background:#fff;z-index:79;pointer-events:none;opacity:0}
+body.quake .view{animation:quake .4s}
+@keyframes quake{0%,100%{transform:none}20%{transform:translate(-10px,6px)}40%{transform:translate(9px,-7px)}60%{transform:translate(-7px,-4px)}80%{transform:translate(6px,5px)}}
+
+/* ---------- participant ---------- */
+#guest{justify-content:center;padding:20px 16px 40px}
+.g-wrap{width:100%;max-width:480px;display:flex;flex-direction:column;gap:18px}
+.g-head{text-align:center;padding-top:10px}
+.g-head h1{font-size:40px;line-height:1;margin:14px 0 8px}
+.g-head h1 span{color:var(--lime)}
+.g-head p{opacity:.75;font-size:15px}
+.card{background:var(--paper);color:var(--ink);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px}
+.card label.lbl{font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;display:block;margin-bottom:6px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--lav);border:3px solid var(--ink);border-radius:18px;padding:12px 14px;cursor:pointer;user-select:none}
+.toggle b{font-size:15px}.toggle small{display:block;font-size:12px;font-weight:600;opacity:.75}
+.sw{width:56px;height:32px;border-radius:999px;background:var(--paper);border:3px solid var(--ink);position:relative;flex-shrink:0;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--ink);transition:left .2s}
+.toggle.on .sw{background:var(--lime)} .toggle.on .sw::after{left:27px}
+.name-box{transition:opacity .2s,max-height .25s;max-height:120px;overflow:visible}
+.name-box.hide{opacity:.35;pointer-events:none}
+textarea.field{min-height:130px;resize:none;line-height:1.4}
+.count{text-align:right;font-size:12px;font-weight:700;opacity:.6;margin-top:6px}
+.send{width:100%;font-size:19px;padding:17px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,220%);visibility:hidden;z-index:90;background:var(--lime);color:var(--ink);font-weight:800;padding:14px 22px;border-radius:999px;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);transition:transform .35s cubic-bezier(.2,1.4,.4,1);max-width:92vw;text-align:center}
+.toast.on{transform:translate(-50%,0);visibility:visible}
+.toast.err{background:var(--pink)}
+.mine h3{font:800 18px 'Unbounded',system-ui,sans-serif;margin-bottom:10px}
+.mine-list{display:flex;flex-direction:column;gap:10px}
+.mine-item{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.15);border-radius:16px;padding:12px 14px;font-size:15px;display:flex;flex-direction:column;gap:8px}
+.mine-item .st{align-self:flex-start;font:800 12px 'Plus Jakarta Sans',system-ui,sans-serif;padding:4px 10px;border-radius:999px;color:var(--ink);border:2px solid var(--ink)}
+.st.wait{background:var(--yellow)} .st.live{background:#ff3b5c;color:#fff} .st.done{background:var(--lime)}
+.live-banner{display:none;background:#ff3b5c;color:#fff;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:20px;padding:16px;text-align:center;font:800 17px 'Plus Jakarta Sans',system-ui,sans-serif;animation:wiggle 1.2s infinite}
+.live-banner.on{display:block}
+.feed h3{font:800 18px 'Unbounded',system-ui,sans-serif;margin-bottom:4px}
+.feed .sub{font-size:13px;opacity:.7;margin-bottom:12px}
+.feed-list{display:flex;flex-direction:column;gap:12px}
+.fq{display:flex;gap:12px;align-items:flex-start;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);border-radius:20px 20px 20px 6px;padding:12px 12px 12px 14px}
+.fq.live{background:#ffd3dc}
+.fq .body{flex:1;min-width:0}
+.fq .meta{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;opacity:.75;margin-bottom:4px;flex-wrap:wrap}
+.fq .meta .tag{background:var(--yellow);border:2px solid var(--ink);border-radius:999px;padding:1px 7px;font-size:11px;opacity:1}
+.fq .meta .tag.live{background:#ff3b5c;color:#fff}
+.fq .t{font-weight:700;font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.vote{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:58px;padding:8px 6px;border-radius:16px;border:3px solid var(--ink);
+  background:#fff;font:900 16px 'Unbounded',system-ui,sans-serif;color:var(--ink);cursor:pointer;box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s,background .15s}
+.vote .f{font-size:22px;line-height:1;filter:grayscale(1);opacity:.6;transition:filter .2s,opacity .2s}
+.vote.on{background:var(--orange)} .vote.on .f{filter:none;opacity:1}
+.vote:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.vote:disabled{cursor:default;opacity:.55;box-shadow:none}
+.vote.bump .f{animation:bump .45s cubic-bezier(.2,1.8,.4,1)}
+.feed-empty{text-align:center;opacity:.6;font-size:14px;padding:14px;border:2px dashed rgba(255,255,255,.2);border-radius:16px}
+.g-conn{text-align:center;font-size:12px;opacity:.6;display:flex;gap:8px;justify-content:center;align-items:center}
+
+@media (max-width:900px){
+  #host{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
+  .side{width:100%;border-right:0;border-bottom:2px dashed rgba(255,255,255,.12)}
+  .board{padding:18px}
+}
+</style>
+</head>
+<body>
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="grain"></div>
+
+<!-- ================= LANDING ================= -->
+<section class="view" id="landing">
+  <div class="land-card">
+    <span class="sticker" style="background:var(--lime)">LIVE Q&A 🎤</span>
+    <h1 class="display">Tanya <span>Aja!</span></h1>
+    <p>Peserta scan QR, kirim pertanyaan (boleh anonim 👻), langsung nongol di layar sebagai balon chat. Udah dibacain? <b>POP!</b> 💥</p>
+    <div class="land-actions">
+      <button class="btn lime" id="btnHost" style="font-size:18px;padding:18px">🖥️ Mulai sesi baru (buka di layar proyektor)</button>
+      <div class="join-row">
+        <input class="field" id="joinCode" placeholder="Kode ruang, mis. K7QX2P" maxlength="8" autocomplete="off" style="text-transform:uppercase">
+        <button class="btn pink" id="btnJoin">Gabung →</button>
+      </div>
+      <button class="btn ghost" id="btnDemo">👀 Coba mode demo (tanpa internet)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOST / LAYAR ================= -->
+<section class="view" id="host">
+  <aside class="side">
+    <h2 class="display">Scan &amp;<br><em>tanya aja</em> 👇</h2>
+    <div class="qr-wrap brut">
+      <div id="qr"></div>
+      <div class="scan">SCAN BUAT NANYA</div>
+      <div class="room-code" id="roomCode">------</div>
+      <div class="join-url" id="joinUrl"></div>
+    </div>
+    <div class="stats">
+      <div class="stat brut" style="background:var(--cyan)"><b id="statWait">0</b><span>antre 💬</span></div>
+      <div class="stat brut" style="background:var(--lime)"><b id="statDone">0</b><span>udah di-pop 💥</span></div>
+    </div>
+    <div class="side-foot">
+      <div class="conn" id="hostConn"></div>
+      <div class="row">
+        <button class="btn paper" id="btnSound">🔊 Suara: ON</button>
+        <button class="btn paper" id="btnFull">⛶ Layar penuh</button>
+      </div>
+      <div class="row">
+        <button class="btn paper" id="btnClear">🧹 Hapus semua</button>
+        <button class="btn paper" id="btnNewRoom">🔄 Ruang baru</button>
+      </div>
+      <div id="demoTools" class="row" style="display:none">
+        <button class="btn lav" id="btnFake">➕ Tambah pertanyaan dummy</button>
+        <button class="btn lav" id="btnFakeVote">🔥 Vote dummy</button>
+        <button class="btn lav" id="btnOpenGuest">📱 Buka halaman peserta</button>
+      </div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1 class="display" id="eventTitle" contenteditable="true" spellcheck="false" title="Klik untuk ganti judul">Ada yang mau ditanyain?<span class="live" contenteditable="false">LIVE</span></h1>
+      <div class="hint">🔥 terbanyak di atas · Klik balon = bacakan · <kbd>Spasi</kbd> = POP · <kbd>Esc</kbd> = batal</div>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+</section>
+
+<!-- spotlight -->
+<div class="spot" id="spot">
+  <div class="label">🎤 LAGI DIBACAIN</div>
+  <div id="spotSlot"></div>
+  <div class="acts">
+    <button class="btn lime" id="btnPop">💥 POP! Sudah dijawab <kbd>Spasi</kbd></button>
+    <button class="btn ghost" id="btnBack">↩ Balikin <kbd>Esc</kbd></button>
+  </div>
+</div>
+<div class="fx" id="fx"></div>
+<div class="flash" id="flash"></div>
+
+<!-- ================= PESERTA ================= -->
+<section class="view" id="guest">
+  <div class="g-wrap">
+    <div class="g-head">
+      <span class="sticker" style="background:var(--pink)">RUANG <span id="gRoom">------</span></span>
+      <h1 class="display">Ada yang mau <span>ditanyain?</span> 🤔</h1>
+      <p>Pertanyaanmu bakal muncul di layar. Santai, boleh anonim kok.</p>
+    </div>
+    <div class="live-banner" id="liveBanner">🎤 Pertanyaanmu lagi dibacain sekarang!</div>
+    <form class="card brut" id="qForm">
+      <div class="toggle" id="anonToggle" role="switch" aria-checked="false" tabindex="0">
+        <div><b>Kirim sebagai anonim 👻</b><small>Namamu nggak bakal ditampilkan</small></div>
+        <div class="sw"></div>
+      </div>
+      <div class="name-box" id="nameBox">
+        <label class="lbl" for="gName">Nama kamu</label>
+        <input class="field" id="gName" maxlength="40" placeholder="mis. Abu — Utilities" autocomplete="name">
+      </div>
+      <div>
+        <label class="lbl" for="gText">Pertanyaan</label>
+        <textarea class="field" id="gText" maxlength="280" placeholder="Tulis pertanyaanmu di sini..."></textarea>
+        <div class="count"><span id="gCount">0</span>/280</div>
+      </div>
+      <button class="btn lime send" id="btnSend" type="submit">Kirim pertanyaan 🚀</button>
+    </form>
+    <div class="mine" id="mine" style="display:none">
+      <h3>Pertanyaanmu</h3>
+      <div class="mine-list" id="mineList"></div>
+    </div>
+    <div class="feed" id="feed">
+      <h3>🔥 Dukung pertanyaan</h3>
+      <div class="sub">Tap 🔥 di pertanyaan yang kamu juga pengen tau jawabannya. Yang paling banyak didukung naik ke atas layar!</div>
+      <div class="feed-list" id="feedList"></div>
+    </div>
+    <div class="g-conn" id="guestConn"></div>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+"use strict";
+/* ============ utils ============ */
+const $ = s => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const randCode = n => Array.from({length:n}, () => CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join("");
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const hash = s => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+const COLORS = ["#C6FF3D","#FF5FA2","#B79CFF","#5CE1E6","#FFB443","#FFE94A","#FF8A65","#7CFFB2"];
+const ANIMALS = [["🦫","Kapibara"],["🐸","Kodok"],["🦊","Rubah"],["🐼","Panda"],["🐙","Gurita"],["🦄","Unicorn"],["👽","Alien"],["🐧","Pinguin"],["🦖","Dino"],["🐱","Kucing"],["🦉","Burung Hantu"],["🐨","Koala"]];
+function persona(q){
+  const h = hash(q.id);
+  if (q.anon || !q.name.trim()) { const a = ANIMALS[(h >>> 7) % ANIMALS.length]; return {av: a[0], name: "Anon " + a[1], anon: true}; }
+  return {av: q.name.trim()[0].toUpperCase(), name: q.name.trim(), anon: false};
+}
+/* votes: Map qid -> Set(voterId). Each vote is its own retained message  <base>/v/<qid>/<voterId> = "1" (empty = unvote),
+   so concurrent votes never overwrite each other. */
+function applyVote(votes, topic, payload){
+  const rest = topic.split("/v/")[1]; if (!rest) return null;
+  const [qid, voter] = rest.split("/"); if (!qid || !voter || qid.length > 40 || voter.length > 40) return null;
+  if (!votes.has(qid)) votes.set(qid, new Set());
+  const s = votes.get(qid);
+  if (payload) s.add(voter); else s.delete(voter);
+  return qid;
+}
+const voteCount = (votes, id) => votes.has(id) ? votes.get(id).size : 0;
+const timeAgo = ts => { const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 45) return "baru aja"; if (s < 3600) return Math.round(s/60) + " mnt lalu"; return Math.round(s/3600) + " jam lalu"; };
+const cleanCode = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+function show(id){ document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === id)); }
+let toastT;
+function toast(msg, err){ const t = $("#toast"); t.textContent = msg; t.classList.toggle("err", !!err); t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2800); }
+
+/* ============ realtime transport ============
+   Default: two public MQTT brokers (redundant) with retained messages.
+   Each question = retained message on  <base>/q/<id>; deleting = empty retained message.
+   Demo mode: BroadcastChannel + localStorage (same browser only, no internet). */
+const BROKERS = params.get("broker") ? [params.get("broker")] : [
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt"
+];
+function createBus(room, demo, onMsg, onStatus){
+  const base = "tanyaaja/v1/" + room;
+  if (demo || typeof mqtt === "undefined") {
+    if (!demo) onStatus([{name:"Offline (library MQTT gagal dimuat)", ok:false}]);
+    const key = "qna-demo-" + room;
+    const chan = ("BroadcastChannel" in window) ? new BroadcastChannel(key) : null;
+    const retained = store.get(key, {});
+    setTimeout(() => { Object.entries(retained).forEach(([t, p]) => onMsg(t, p)); if (demo) onStatus([{name:"Mode demo (lokal)", ok:true}]); }, 50);
+    if (chan) chan.onmessage = e => onMsg(e.data.t, e.data.p);
+    return {
+      base,
+      pub(sub, payload){
+        const t = base + "/" + sub, all = store.get(key, {});
+        if (payload) all[t] = payload; else delete all[t];
+        store.set(key, all);
+        if (chan) chan.postMessage({t, p: payload});
+        onMsg(t, payload);
+      }
+    };
+  }
+  const states = BROKERS.map(u => ({name: u.replace(/^wss?:\/\//, "").split(/[:/]/)[0], ok:false}));
+  const report = () => onStatus(states);
+  const clients = BROKERS.map((url, i) => {
+    let c;
+    try {
+      c = mqtt.connect(url, { clientId: "tq_" + uid(), clean: true, reconnectPeriod: 3000, connectTimeout: 9000, keepalive: 30 });
+    } catch (e) { return null; }
+    c.on("connect", () => { states[i].ok = true; report(); c.subscribe([base + "/q/+", base + "/live", base + "/v/+/+"], {qos:1}); });
+    c.on("close", () => { states[i].ok = false; report(); });
+    c.on("offline", () => { states[i].ok = false; report(); });
+    c.on("error", () => {});
+    c.on("message", (topic, buf) => onMsg(topic, buf.toString()));
+    return c;
+  }).filter(Boolean);
+  report();
+  return {
+    base,
+    pub(sub, payload){
+      const t = base + "/" + sub;
+      clients.forEach(c => c.publish(t, payload || "", {qos:1, retain:true}));
+      onMsg(t, payload || ""); // optimistic local update
+    },
+    anyOnline(){ return states.some(s => s.ok); }
+  };
+}
+function renderConn(el, states){
+  el.innerHTML = "";
+  states.forEach(s => {
+    const d = document.createElement("span");
+    d.style.cssText = "display:inline-flex;gap:6px;align-items:center";
+    d.innerHTML = '<i class="dot ' + (s.ok ? "ok" : "bad") + '"></i>';
+    d.append(document.createTextNode(s.name));
+    el.append(d);
+  });
+}
+function parseQ(payload){
+  try {
+    const q = JSON.parse(payload);
+    if (!q || typeof q.id !== "string" || typeof q.text !== "string" || !q.text.trim()) return null;
+    return { id: q.id.slice(0, 40), text: q.text.slice(0, 280), name: (q.name || "").toString().slice(0, 40), anon: !!q.anon, ts: Number(q.ts) || Date.now() };
+  } catch (e) { return null; }
+}
+
+/* ============ sound ============ */
+let actx = null, soundOn = store.get("qna-sound", true);
+function popSound(){
+  if (!soundOn) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime, len = 0.5;
+    const buf = actx.createBuffer(1, actx.sampleRate * len, actx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+    const n = actx.createBufferSource(); n.buffer = buf;
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(200, t + len);
+    const g = actx.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    n.connect(f).connect(g).connect(actx.destination); n.start(t);
+    const o = actx.createOscillator(), og = actx.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(80, t + 0.18);
+    og.gain.setValueAtTime(0.25, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(og).connect(actx.destination); o.start(t); o.stop(t + 0.22);
+  } catch (e) {}
+}
+function dingSound(){
+  if (!soundOn || !actx) return;
+  try {
+    const t = actx.currentTime;
+    [880, 1320].forEach((fr, i) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = "sine"; o.frequency.value = fr;
+      g.gain.setValueAtTime(0.0001, t + i*0.09); g.gain.exponentialRampToValueAtTime(0.18, t + i*0.09 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i*0.09 + 0.3);
+      o.connect(g).connect(actx.destination); o.start(t + i*0.09); o.stop(t + i*0.09 + 0.32); });
+  } catch (e) {}
+}
+
+/* ============ explosion fx ============ */
+function explode(el, color){
+  const r = el.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const fx = $("#fx"), pal = [color, ...COLORS];
+  popSound();
+  document.body.classList.remove("quake"); void document.body.offsetWidth; document.body.classList.add("quake");
+  $("#flash").animate([{opacity:.55},{opacity:0}], {duration:260, easing:"ease-out"});
+  // shockwave rings
+  [0, 120].forEach((delay, i) => {
+    const ring = document.createElement("div"); ring.className = "ring";
+    const s = Math.max(r.width, r.height) * .6;
+    Object.assign(ring.style, {width:s+"px", height:s+"px", left:(cx - s/2)+"px", top:(cy - s/2)+"px", borderColor: i ? "#FF5FA2" : "#FFE94A"});
+    fx.append(ring);
+    ring.animate([{transform:"scale(.3)", opacity:1},{transform:"scale(4)", opacity:0}], {duration:700, delay, easing:"cubic-bezier(.1,.8,.3,1)", fill:"both"}).onfinish = () => ring.remove();
+  });
+  // bubble shards — pieces of the chat bubble flying out
+  const N = 46;
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement("div"); p.className = "shard";
+    const w = 10 + Math.random()*34, h = 8 + Math.random()*26;
+    const sx = r.left + Math.random()*r.width, sy = r.top + Math.random()*r.height;
+    const shapes = ["50%", "6px", "50% 50% 50% 4px", "0"];
+    Object.assign(p.style, {width:w+"px", height:h+"px", left:sx+"px", top:sy+"px", background: pal[Math.floor(Math.random()*pal.length)], borderRadius: shapes[i % 4]});
+    if (i % 4 === 3) p.style.clipPath = "polygon(50% 0,100% 100%,0 100%)";
+    fx.append(p);
+    const ang = Math.atan2(sy - cy, sx - cx) + (Math.random() - .5) * .8, dist = 260 + Math.random() * 520;
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
+    p.animate([
+      {transform:"translate(0,0) rotate(0deg) scale(1)", opacity:1},
+      {transform:`translate(${dx*.7}px,${dy*.7 - 60}px) rotate(${(Math.random()-.5)*540}deg) scale(1)`, opacity:1, offset:.6},
+      {transform:`translate(${dx}px,${dy + 220}px) rotate(${(Math.random()-.5)*900}deg) scale(.3)`, opacity:0}
+    ], {duration:1100 + Math.random()*600, easing:"cubic-bezier(.15,.75,.35,1)", fill:"forwards"}).onfinish = () => p.remove();
+  }
+  // emojis
+  const EM = ["💥","✨","🎉","💬","⭐","🔥","🫧","💖"];
+  for (let i = 0; i < 14; i++) {
+    const e = document.createElement("div"); e.className = "emo"; e.textContent = EM[i % EM.length];
+    Object.assign(e.style, {left:(cx - 19)+"px", top:(cy - 19)+"px", fontSize:(28 + Math.random()*30)+"px"});
+    fx.append(e);
+    const ang = Math.random()*Math.PI*2, dist = 180 + Math.random()*380;
+    e.animate([
+      {transform:"translate(0,0) scale(.2)", opacity:1},
+      {transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist}px) scale(1.2) rotate(${(Math.random()-.5)*90}deg)`, opacity:1, offset:.55},
+      {transform:`translate(${Math.cos(ang)*dist*1.2}px,${Math.sin(ang)*dist*1.2 + 160}px) scale(.6)`, opacity:0}
+    ], {duration:1400, easing:"cubic-bezier(.2,.8,.3,1)", fill:"forwards"}).onfinish = () => e.remove();
+  }
+  // POP! text
+  const pow = document.createElement("div"); pow.className = "pow";
+  pow.textContent = ["POP!","BOOM!","DONE!","SLAY!"][Math.floor(Math.random()*4)];
+  fx.append(pow);
+  const pw = pow.offsetWidth, ph = pow.offsetHeight;
+  Object.assign(pow.style, {left:(cx - pw/2)+"px", top:(cy - ph/2)+"px"});
+  pow.animate([
+    {transform:"scale(.2) rotate(-20deg)", opacity:0},
+    {transform:"scale(1.25) rotate(-8deg)", opacity:1, offset:.25},
+    {transform:"scale(1) rotate(-6deg)", opacity:1, offset:.6},
+    {transform:"scale(1.5) rotate(-6deg)", opacity:0}
+  ], {duration:1200, easing:"ease-out", fill:"forwards"}).onfinish = () => pow.remove();
+}
+
+/* ============ HOST ============ */
+function startHost(room, demo){
+  show("host");
+  const joinURL = location.origin + location.pathname + "?room=" + room + (demo ? "&demo=1" : "");
+  $("#roomCode").textContent = room;
+  $("#joinUrl").textContent = joinURL.replace(/^https?:\/\//, "");
+  try { new QRCode($("#qr"), {text: joinURL, width: 500, height: 500, colorDark:"#0E0C14", colorLight:"#FFF8EC", correctLevel: QRCode.CorrectLevel.M}); }
+  catch (e) { $("#qr").innerHTML = '<div style="padding:30px 0;font-weight:800">QR gagal dimuat — pakai kode di bawah 👇</div>'; }
+  if (demo) { $("#demoTools").style.display = "flex"; }
+  const titleKey = "qna-title-" + room, savedTitle = store.get(titleKey, null);
+  if (savedTitle) $("#eventTitle").firstChild.textContent = savedTitle;
+  $("#eventTitle").addEventListener("input", () => store.set(titleKey, $("#eventTitle").firstChild.textContent));
+
+  const qs = new Map(); // id -> {q, el}
+  const votes = new Map();
+  const doneKey = "qna-done-" + room;
+  let doneCount = store.get(doneKey, 0), spotId = null, busy = false, firstLoad = true;
+  setTimeout(() => firstLoad = false, 2500);
+  const board = $("#board");
+
+  function updateStats(){
+    $("#statWait").textContent = qs.size; $("#statDone").textContent = doneCount;
+    const empty = board.querySelector(".empty");
+    if (!qs.size && !empty) board.innerHTML = '<div class="empty"><div class="big">💬</div><h3>Belum ada pertanyaan</h3><p>Scan QR di samping, terus tanya aja!</p></div>';
+    if (qs.size && empty) empty.remove();
+  }
+  function bubbleEl(q, big){
+    const h = hash(q.id), color = COLORS[h % COLORS.length];
+    const el = document.createElement("div");
+    el.className = "bubble" + (q.text.length > 140 && !big ? " sm" : "");
+    el.style.background = color;
+    el.style.setProperty("--rot", (((h >>> 3) % 7) - 3) * 0.7 + "deg");
+    el.style.setProperty("--bd", -((h >>> 5) % 40) / 10 + "s");
+    const who = document.createElement("div"); who.className = "who";
+    const av = document.createElement("div"); av.className = "av";
+    const pz = persona(q);
+    av.textContent = pz.av; if (pz.anon) av.style.background = "#fff";
+    const meta = document.createElement("div");
+    const n = document.createElement("div"); n.className = "name"; n.textContent = pz.name;
+    const tm = document.createElement("div"); tm.className = "time"; tm.dataset.ts = q.ts; tm.textContent = timeAgo(q.ts);
+    meta.append(n, tm); who.append(av, meta);
+    const tx = document.createElement("div"); tx.className = "txt"; tx.textContent = q.text;
+    const vb = document.createElement("div"); vb.className = "votes";
+    el.append(who, tx, vb);
+    el._color = color; el._votes = vb;
+    setVotesBadge(el, voteCount(votes, q.id), false);
+    return el;
+  }
+  function setVotesBadge(el, n, bump){
+    const vb = el._votes; if (!vb) return;
+    const old = +(vb.dataset.n || 0);
+    vb.dataset.n = n; vb.textContent = "🔥 " + n; vb.classList.toggle("on", n > 0);
+    if (bump && n > old) { vb.classList.remove("bump"); void vb.offsetWidth; vb.classList.add("bump"); }
+  }
+  const ordered = () => [...qs.values()].sort((a, b) => (voteCount(votes, b.q.id) - voteCount(votes, a.q.id)) || (a.q.ts - b.q.ts));
+  let sortQueued = false;
+  function sortBoard(){
+    if (sortQueued) return; sortQueued = true;
+    requestAnimationFrame(() => {
+      sortQueued = false;
+      const list = ordered();
+      const first = new Map(list.map(o => [o, o.el.getBoundingClientRect()]));
+      list.forEach((o, i) => {
+        o.el.classList.toggle("top", i === 0 && voteCount(votes, o.q.id) > 0 && list.length > 1);
+        if (board.children[i] !== o.el) board.insertBefore(o.el, board.children[i] || null);
+      });
+      // FLIP: slide each bubble from its old spot to the new one
+      list.forEach(o => {
+        const a = first.get(o), b = o.el.getBoundingClientRect();
+        const dx = a.left - b.left, dy = a.top - b.top;
+        if ((dx || dy) && a.width) {
+          const rot = o.el.style.getPropertyValue("--rot") || "0deg";
+          o.el.animate([{transform:`translate(${dx}px,${dy}px) rotate(${rot})`},{transform:`translate(0,0) rotate(${rot})`}], {duration:550, easing:"cubic-bezier(.2,1.2,.4,1)"});
+        }
+      });
+    });
+  }
+  function addQ(q){
+    if (qs.has(q.id)) return;
+    const el = bubbleEl(q, false);
+    const x = document.createElement("div"); x.className = "x"; x.title = "Hapus tanpa ledakan (moderasi)"; x.textContent = "✕";
+    x.addEventListener("click", ev => { ev.stopPropagation(); bus.pub("q/" + q.id, ""); });
+    el.append(x);
+    el.addEventListener("click", () => openSpot(q.id));
+    if (!firstLoad) { el.classList.add("new-badge"); setTimeout(() => el.classList.remove("new-badge"), 9000); dingSound(); }
+    board.append(el);
+    qs.set(q.id, {q, el});
+    updateStats();
+    sortBoard();
+    if (!firstLoad && voteCount(votes, q.id) === 0) setTimeout(() => board.scrollTop = board.scrollHeight, 60);
+  }
+  function clearVotes(id){
+    const s = votes.get(id); if (!s) return;
+    [...s].forEach(v => bus.pub("v/" + id + "/" + v, ""));
+    votes.delete(id);
+  }
+  function removeQ(id, exploded){
+    const o = qs.get(id); if (!o) return;
+    qs.delete(id);
+    clearVotes(id);
+    sortBoard();
+    if (spotId === id && !exploded) closeSpot();
+    if (exploded) o.el.remove();
+    else { o.el.classList.add("leaving"); setTimeout(() => o.el.remove(), 350); }
+    updateStats();
+  }
+  function openSpot(id){
+    const o = qs.get(id); if (!o || busy) return;
+    spotId = id;
+    const slot = $("#spotSlot"); slot.innerHTML = "";
+    slot.append(bubbleEl(o.q, true));
+    $("#spot").classList.add("on");
+    o.el.style.visibility = "hidden";
+    bus.pub("live", JSON.stringify({id}));
+    // warm up audio on user gesture
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  }
+  function closeSpot(){
+    if (spotId && qs.get(spotId)) qs.get(spotId).el.style.visibility = "";
+    spotId = null; $("#spot").classList.remove("on"); $("#spotSlot").innerHTML = "";
+    bus.pub("live", "");
+  }
+  function popSpot(){
+    if (!spotId || busy) return;
+    busy = true;
+    const id = spotId, b = $("#spotSlot .bubble");
+    b.classList.add("shake");
+    setTimeout(() => {
+      explode(b, b._color);
+      b.style.visibility = "hidden";
+      $("#spot").animate([{opacity:1},{opacity:0}], {duration:350, delay:150, fill:"forwards"}).onfinish = a => {
+        $("#spot").classList.remove("on"); a.target.cancel();
+        $("#spotSlot").innerHTML = ""; busy = false;
+      };
+      doneCount++; store.set(doneKey, doneCount);
+      spotId = null;
+      removeQ(id, true);
+      bus.pub("q/" + id, "");
+      bus.pub("live", "");
+    }, 430);
+  }
+  $("#btnPop").onclick = popSpot;
+  $("#btnBack").onclick = closeSpot;
+  $("#spot").addEventListener("click", e => { if (e.target.id === "spot") closeSpot(); });
+  document.addEventListener("keydown", e => {
+    if (document.activeElement && document.activeElement.isContentEditable) return;
+    if (e.code === "Space" && spotId) { e.preventDefault(); popSpot(); }
+    else if (e.code === "Escape" && spotId) closeSpot();
+    else if (e.code === "Space" && !spotId && qs.size) { e.preventDefault(); openSpot(ordered()[0].q.id); }
+  });
+  $("#btnSound").textContent = soundOn ? "🔊 Suara: ON" : "🔇 Suara: OFF";
+  $("#btnSound").onclick = () => { soundOn = !soundOn; store.set("qna-sound", soundOn); $("#btnSound").textContent = soundOn ? "🔊 Suara: ON" : "🔇 Suara: OFF"; };
+  $("#btnFull").onclick = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} };
+  const confirmBtn = (btn, label, fn) => {
+    let armed = false, t;
+    btn.addEventListener("click", () => {
+      if (!armed) { armed = true; const old = btn.textContent; btn.textContent = label; t = setTimeout(() => { armed = false; btn.textContent = old; }, 2500); btn._old = old; return; }
+      clearTimeout(t); armed = false; btn.textContent = btn._old; fn();
+    });
+  };
+  confirmBtn($("#btnClear"), "Yakin? Klik lagi", () => { [...qs.keys()].forEach(id => bus.pub("q/" + id, "")); toast("Semua pertanyaan dihapus 🧹"); });
+  confirmBtn($("#btnNewRoom"), "Yakin? Klik lagi", () => { location.href = location.pathname + "?host=" + randCode(6) + (demo ? "&demo=1" : ""); });
+  $("#btnFake").onclick = () => {
+    const samples = ["Kapan jadwal shutdown berikutnya diumumkan? 🙏","Apakah ada rencana upgrade sistem monitoring substation tahun depan?","Gimana cara ngajuin ide inovasi biar bisa ikut FFIM?","Boleh dijelasin lagi soal target efisiensi energi Q1?","Kenapa SOP switching yang baru beda sama yang lama?","Ada pelatihan buat operator baru nggak bulan ini?"];
+    const anon = Math.random() < .5, names = ["Rina","Dimas","Pak Budi","Sari","Fajar"];
+    const q = {id: uid(), text: samples[Math.floor(Math.random()*samples.length)], name: anon ? "" : names[Math.floor(Math.random()*names.length)], anon, ts: Date.now()};
+    bus.pub("q/" + q.id, JSON.stringify(q));
+  };
+  $("#btnFakeVote").onclick = () => {
+    const list = [...qs.keys()]; if (!list.length) return;
+    const id = list[Math.floor(Math.random() * Math.min(list.length, 3)) + Math.max(0, list.length - 3)] || list[0];
+    bus.pub("v/" + id + "/fake" + uid(), "1");
+  };
+  $("#btnOpenGuest").onclick = () => { const a = document.createElement("a"); a.href = joinURL; a.target = "_blank"; a.rel = "noopener"; document.body.append(a); a.click(); a.remove(); };
+  setInterval(() => document.querySelectorAll(".time[data-ts]").forEach(t => t.textContent = timeAgo(+t.dataset.ts)), 30000);
+
+  const bus = createBus(room, demo, (topic, payload) => {
+    if (topic.endsWith("/live")) return;
+    if (topic.includes("/v/")) {
+      const qid = applyVote(votes, topic, payload);
+      const o = qid && qs.get(qid);
+      if (o) { setVotesBadge(o.el, voteCount(votes, qid), true); sortBoard(); }
+      if (qid && spotId === qid) { const sb = $("#spotSlot .bubble"); if (sb) setVotesBadge(sb, voteCount(votes, qid), true); }
+      return;
+    }
+    const id = topic.split("/q/")[1]; if (!id) return;
+    if (!payload) { removeQ(id, false); return; }
+    const q = parseQ(payload); if (q && q.id === id) addQ(q);
+  }, states => renderConn($("#hostConn"), states));
+  updateStats();
+}
+
+/* ============ GUEST ============ */
+function startGuest(room, demo){
+  show("guest");
+  $("#gRoom").textContent = room;
+  const mineKey = "qna-mine-" + room;
+  let mine = store.get(mineKey, []); // [{id,text,status}]
+  let anon = store.get("qna-anon", false), lastSent = 0, liveId = null;
+  const seen = new Set(), allQ = new Map(), votes = new Map();
+  let voterId = store.get("qna-voter", null); if (!voterId) { voterId = "u" + uid(); store.set("qna-voter", voterId); }
+  let feedQueued = false;
+  const queueFeed = () => { if (feedQueued) return; feedQueued = true; requestAnimationFrame(() => { feedQueued = false; renderFeed(); }); };
+  function renderFeed(){
+    const list = $("#feedList"), mineIds = new Set(mine.map(m => m.id));
+    const items = [...allQ.values()].sort((a, b) => (voteCount(votes, b.id) - voteCount(votes, a.id)) || (a.ts - b.ts));
+    // keep the old vote-count per item to animate bumps
+    const prev = {}; list.querySelectorAll(".fq").forEach(el => prev[el.dataset.id] = +el.dataset.n);
+    list.innerHTML = "";
+    if (!items.length) { list.innerHTML = '<div class="feed-empty">Belum ada pertanyaan lain. Jadi yang pertama! ✨</div>'; return; }
+    items.forEach(q => {
+      const n = voteCount(votes, q.id), own = mineIds.has(q.id), on = votes.has(q.id) && votes.get(q.id).has(voterId);
+      const pz = persona(q);
+      const row = document.createElement("div"); row.className = "fq" + (liveId === q.id ? " live" : ""); row.dataset.id = q.id; row.dataset.n = n;
+      const body = document.createElement("div"); body.className = "body";
+      const meta = document.createElement("div"); meta.className = "meta";
+      meta.append(document.createTextNode(pz.anon ? pz.av + " " + pz.name : pz.name));
+      if (own) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "punyamu"; meta.append(t); }
+      if (liveId === q.id) { const t = document.createElement("span"); t.className = "tag live"; t.textContent = "🎤 lagi dibacain"; meta.append(t); }
+      const t = document.createElement("div"); t.className = "t"; t.textContent = q.text;
+      body.append(meta, t);
+      const btn = document.createElement("button"); btn.type = "button"; btn.className = "vote" + (on ? " on" : "");
+      btn.innerHTML = '<span class="f">🔥</span>'; btn.append(document.createTextNode(String(n)));
+      btn.setAttribute("aria-label", (on ? "Batal dukung" : "Dukung") + " pertanyaan ini, " + n + " dukungan");
+      if (own) { btn.disabled = true; btn.title = "Nggak bisa vote pertanyaan sendiri 😄"; }
+      else btn.onclick = () => {
+        const nowOn = votes.has(q.id) && votes.get(q.id).has(voterId);
+        bus.pub("v/" + q.id + "/" + voterId, nowOn ? "" : "1");
+        if (!nowOn && navigator.vibrate) navigator.vibrate(30);
+      };
+      if (prev[q.id] !== undefined && n > prev[q.id]) btn.classList.add("bump");
+      row.append(body, btn); list.append(row);
+    });
+  }
+  $("#gName").value = store.get("qna-name", "");
+  const setAnon = v => { anon = v; store.set("qna-anon", v); $("#anonToggle").classList.toggle("on", v); $("#anonToggle").setAttribute("aria-checked", v); $("#nameBox").classList.toggle("hide", v); };
+  setAnon(anon);
+  $("#anonToggle").onclick = () => setAnon(!anon);
+  $("#anonToggle").onkeydown = e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setAnon(!anon); } };
+  $("#gText").oninput = () => $("#gCount").textContent = $("#gText").value.length;
+  $("#gName").onchange = () => store.set("qna-name", $("#gName").value.trim());
+
+  function renderMine(){
+    $("#mine").style.display = mine.length ? "block" : "none";
+    const list = $("#mineList"); list.innerHTML = "";
+    [...mine].reverse().forEach(m => {
+      const st = liveId === m.id ? "live" : m.status;
+      const it = document.createElement("div"); it.className = "mine-item";
+      const tx = document.createElement("div"); tx.textContent = m.text;
+      const badge = document.createElement("span"); badge.className = "st " + st;
+      badge.textContent = st === "live" ? "🎤 Lagi dibacain" : st === "done" ? "✅ Sudah dijawab" : "⏳ Antre di layar";
+      it.append(tx, badge); list.append(it);
+    });
+    $("#liveBanner").classList.toggle("on", mine.some(m => m.id === liveId));
+  }
+  const save = () => store.set(mineKey, mine.slice(-30));
+
+  const bus = createBus(room, demo, (topic, payload) => {
+    if (topic.endsWith("/live")) {
+      let id = null; try { id = payload ? JSON.parse(payload).id : null; } catch (e) {}
+      liveId = id; renderMine(); queueFeed();
+      if (id && mine.some(m => m.id === id) && navigator.vibrate) navigator.vibrate([120, 60, 120]);
+      return;
+    }
+    if (topic.includes("/v/")) { if (applyVote(votes, topic, payload)) queueFeed(); return; }
+    const id = topic.split("/q/")[1]; if (!id) return;
+    if (payload) { const q = parseQ(payload); if (q && q.id === id) allQ.set(id, q); } else allQ.delete(id);
+    queueFeed();
+    const m = mine.find(x => x.id === id); if (!m) return;
+    if (payload) { seen.add(id); if (m.status !== "wait") { m.status = "wait"; save(); renderMine(); } }
+    else if (m.status === "wait") { m.status = "done"; save(); renderMine(); }
+  }, states => renderConn($("#guestConn"), states));
+  renderMine(); renderFeed();
+
+  $("#qForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const text = $("#gText").value.trim(), name = $("#gName").value.trim();
+    if (text.length < 3) { toast("Pertanyaannya masih kosong nih 😅", true); return; }
+    if (!anon && !name) { toast("Isi nama dulu, atau nyalain mode anonim 👻", true); $("#gName").focus(); return; }
+    const wait = 8000 - (Date.now() - lastSent);
+    if (wait > 0) { toast("Santai dulu, tunggu " + Math.ceil(wait/1000) + " detik ya ⏳", true); return; }
+    if (!demo && bus.anyOnline && !bus.anyOnline()) { toast("Koneksi belum nyambung, coba lagi sebentar 📶", true); return; }
+    const q = {id: uid(), text, name: anon ? "" : name, anon, ts: Date.now()};
+    bus.pub("q/" + q.id, JSON.stringify(q));
+    lastSent = Date.now();
+    mine.push({id: q.id, text, status: "wait"}); save(); renderMine();
+    $("#gText").value = ""; $("#gCount").textContent = "0";
+    if (name) store.set("qna-name", name);
+    toast("Terkirim! Cek layar ya 🚀");
+    const btn = $("#btnSend"); explode(btn, "#C6FF3D");
+  });
+}
+
+/* ============ router ============ */
+const demo = params.get("demo") === "1";
+const hostRoom = cleanCode(params.get("host")), guestRoom = cleanCode(params.get("room"));
+if (hostRoom) startHost(hostRoom, demo);
+else if (guestRoom) startGuest(guestRoom, demo);
+else {
+  show("landing");
+  $("#btnHost").onclick = () => location.href = location.pathname + "?host=" + randCode(6);
+  $("#btnDemo").onclick = () => location.href = location.pathname + "?host=DEMO01&demo=1";
+  const join = () => { const c = cleanCode($("#joinCode").value); if (c.length < 4) { toast("Kodenya kurang lengkap 🤔", true); return; } location.href = location.pathname + "?room=" + c; };
+  $("#btnJoin").onclick = join;
+  $("#joinCode").onkeydown = e => { if (e.key === "Enter") join(); };
+}
+})();
+</script>
+</body>
+</html>
