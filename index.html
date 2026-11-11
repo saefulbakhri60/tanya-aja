@@ -6,7 +6,6 @@
 <title>Live Q&A — Tanya Aja!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
@@ -49,12 +48,24 @@ body{
 .dot.bad{background:#ff4d4d}
 
 /* ---------- landing ---------- */
-#landing{align-items:center;justify-content:center;padding:24px;text-align:center}
+#landing,#gate{align-items:center;justify-content:center;padding:24px;text-align:center}
 .land-card{max-width:560px;width:100%}
 .land-card h1{font-size:clamp(44px,9vw,84px);line-height:.95;margin:18px 0 34px}
 .land-card h1 span{color:var(--lime);display:inline-block;transform:rotate(-4deg)}
 .land-card p{opacity:.8;font-size:17px;margin-bottom:30px}
 .land-actions{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+#landing .land-card,#gate .land-card{display:flex;flex-direction:column;align-items:center}
+#landing .land-actions,#gate .land-actions{width:100%}
+#gate p{opacity:.85;font-size:17px;margin-bottom:26px}
+#gate h1{margin:18px 0 14px}#gate h1 span{color:var(--lime)}
+.btn.sm{padding:7px 14px;font-size:13px;box-shadow:2px 2px 0 rgba(255,255,255,.25)}
+.hello-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:17px}
+.my-rooms{display:flex;flex-direction:column;gap:8px;margin-top:6px;text-align:left}
+.my-h{font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;opacity:.7;text-transform:uppercase;letter-spacing:.06em}
+.my-room{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);border-radius:14px;padding:8px 10px}
+.my-room b{font:900 16px 'Unbounded',system-ui,sans-serif;letter-spacing:.06em}
+.my-room span{font-size:12px;opacity:.6;margin-right:auto}
+.my-room .btn{padding:6px 12px;font-size:12px;box-shadow:2px 2px 0 var(--ink);text-decoration:none}
 .join-row{display:flex;gap:10px}
 .join-row input{flex:1;min-width:0}
 input.field,textarea.field{width:100%;font:600 17px 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:18px;padding:14px 16px;outline:none;box-shadow:4px 4px 0 var(--ink)}
@@ -307,13 +318,37 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
   <div class="land-card">
     <span class="sticker" style="background:var(--lime)">LIVE Q&A 🎤</span>
     <h1 class="display">Tanya <span>Aja!</span></h1>
-    <div class="land-actions">
-      <button class="btn lime" id="btnHost" style="font-size:18px;padding:18px">🖥️ Mulai sesi baru (buka di layar proyektor)</button>
+    <!-- host (signed in with an allowed Google account) -->
+    <div class="land-actions" id="lHost" style="display:none">
+      <div class="hello-row"><span id="lHello">Halo 👋</span><button class="btn ghost sm" id="btnLogout">Keluar</button></div>
+      <button class="btn lime" id="btnHost" style="font-size:18px;padding:18px">🖥️ Mulai sesi baru (kode acak)</button>
       <div class="join-row">
-        <input class="field" id="joinCode" placeholder="Kode ruang, mis. U-TALK" maxlength="12" autocomplete="off" style="text-transform:uppercase">
-        <button class="btn lav" id="btnCreate" title="Buat sesi dengan kode ini">🖥️ Buat</button>
-        <button class="btn pink" id="btnJoin" title="Gabung sebagai peserta">Gabung →</button>
+        <input class="field" id="hostCode" placeholder="Kode sendiri, mis. U-TALK" maxlength="12" autocomplete="off" style="text-transform:uppercase">
+        <button class="btn lav" id="btnCreate">🖥️ Buat</button>
       </div>
+      <div class="my-rooms" id="myRooms"></div>
+    </div>
+    <!-- everyone else -->
+    <div class="land-actions" id="lGuest">
+      <div class="join-row">
+        <input class="field" id="joinCode" placeholder="Kode ruang di layar, mis. U-TALK" maxlength="12" autocomplete="off" style="text-transform:uppercase">
+        <button class="btn pink" id="btnJoin">Gabung →</button>
+      </div>
+      <div id="lNotHost" style="display:none" class="ad-note"><span id="lNotHostMsg"></span> <button class="btn ghost sm" id="btnLogout2">Keluar</button></div>
+      <button class="btn ghost" id="btnLogin">🔐 Masuk sebagai host (Google)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GATE (host only) ================= -->
+<section class="view" id="gate">
+  <div class="land-card">
+    <span class="sticker" style="background:var(--yellow)">🔐 KHUSUS HOST</span>
+    <h1 class="display" style="font-size:clamp(36px,7vw,60px)">Tanya <span>Aja!</span></h1>
+    <p id="gateMsg">Halaman ini khusus host.</p>
+    <div class="land-actions">
+      <button class="btn lime" id="gateLogin">🔐 Masuk dengan Google</button>
+      <a class="btn ghost" href="./">← Halaman depan</a>
     </div>
   </div>
 </section>
@@ -339,11 +374,6 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
       <div class="row">
         <button class="btn paper" id="btnClear">🧹 Hapus semua</button>
         <button class="btn paper" id="btnNewRoom">🔄 Ruang baru</button>
-      </div>
-      <div id="demoTools" class="row" style="display:none">
-        <button class="btn lav" id="btnFake">➕ Tambah pertanyaan dummy</button>
-        <button class="btn lav" id="btnFakeVote">🔥 Vote dummy</button>
-        <button class="btn lav" id="btnOpenGuest">📱 Buka halaman peserta</button>
       </div>
     </div>
   </aside>
@@ -399,7 +429,7 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
         <button class="btn lime" id="amOpen">↗ Buka di jendela baru</button>
         <button class="btn paper" id="amCopy">📄 Salin link</button>
       </div>
-      <p class="ad-note" style="margin-top:12px;opacity:.75">⚠️ Link ini rahasia — siapa pun yang punya link bisa mengendalikan layar. Jangan tampilkan modal ini di proyektor.</p>
+      <p class="ad-note" style="margin-top:12px;opacity:.75">🔐 Hanya bisa dibuka setelah login dengan akun Google host. Peserta yang membuka link ini akan ditolak.</p>
     </div>
   </div>
 </div>
@@ -455,7 +485,7 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
     <div class="g-head">
       <span class="sticker" style="background:var(--pink)">RUANG <span id="gRoom">------</span></span>
       <h1 class="display">Ada yang mau <span>ditanyain?</span> 🤔</h1>
-      <p>Pertanyaanmu bakal muncul di layar. Santai, boleh anonim kok.</p>
+      <p id="gHeadP">Pertanyaanmu bakal muncul di layar. Santai, boleh anonim kok.</p>
     </div>
     <div class="live-banner" id="liveBanner">🎤 Pertanyaanmu lagi dibacain sekarang!</div>
     <form class="card brut" id="qForm">
@@ -488,765 +518,6 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
 </section>
 <div class="toast" id="toast"></div>
 
-<script>
-(() => {
-"use strict";
-/* ============ utils ============ */
-const $ = s => document.querySelector(s);
-const params = new URLSearchParams(location.search);
-const store = {
-  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-};
-const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-const randCode = n => Array.from({length:n}, () => CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join("");
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const hash = s => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-const COLORS = ["#C6FF3D","#FF5FA2","#B79CFF","#5CE1E6","#FFB443","#FFE94A","#FF8A65","#7CFFB2"];
-const ANIMALS = [["🦫","Kapibara"],["🐸","Kodok"],["🦊","Rubah"],["🐼","Panda"],["🐙","Gurita"],["🦄","Unicorn"],["👽","Alien"],["🐧","Pinguin"],["🦖","Dino"],["🐱","Kucing"],["🦉","Burung Hantu"],["🐨","Koala"]];
-function persona(q){
-  const h = hash(q.id);
-  if (q.anon || !q.name.trim()) { const a = ANIMALS[(h >>> 7) % ANIMALS.length]; return {av: a[0], name: "Anon " + a[1], anon: true}; }
-  return {av: q.name.trim()[0].toUpperCase(), name: q.name.trim(), anon: false};
-}
-/* votes: Map qid -> Set(voterId). Each vote is its own retained message  <base>/v/<qid>/<voterId> = "1" (empty = unvote),
-   so concurrent votes never overwrite each other. */
-function applyVote(votes, topic, payload){
-  const rest = topic.split("/v/")[1]; if (!rest) return null;
-  const [qid, voter] = rest.split("/"); if (!qid || !voter || qid.length > 40 || voter.length > 40) return null;
-  if (!votes.has(qid)) votes.set(qid, new Set());
-  const s = votes.get(qid);
-  if (payload) s.add(voter); else s.delete(voter);
-  return qid;
-}
-const voteCount = (votes, id) => votes.has(id) ? votes.get(id).size : 0;
-const timeAgo = ts => { const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 45) return "baru aja"; if (s < 3600) return Math.round(s/60) + " mnt lalu"; return Math.round(s/3600) + " jam lalu"; };
-const cleanCode = s => (s || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 12);
-const cleanKey = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
-// Creating a room = getting its secret key on this device (re-uses the key if this device made it before).
-function createRoom(code){
-  let k = store.get("qna-adminkey-" + code, null);
-  if (!k) { k = randCode(10); store.set("qna-adminkey-" + code, k); }
-  location.href = location.pathname + "?host=" + code + "&k=" + k;
-}
-function show(id){ document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === id)); }
-let toastT;
-function toast(msg, err){ const t = $("#toast"); t.textContent = msg; t.classList.toggle("err", !!err); t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2800); }
-
-/* ============ realtime transport ============
-   Default: two public MQTT brokers (redundant) with retained messages.
-   Each question = retained message on  <base>/q/<id>; deleting = empty retained message.
-   Demo mode: BroadcastChannel + localStorage (same browser only, no internet). */
-const BROKERS = params.get("broker") ? [params.get("broker")] : [
-  "wss://broker.emqx.io:8084/mqtt",
-  "wss://broker.hivemq.com:8884/mqtt"
-];
-function createBus(room, demo, onMsg, onStatus, subs){
-  const base = "tanyaaja/v1/" + room;
-  subs = subs || ["q/+", "live", "v/+/+"];
-  if (demo || typeof mqtt === "undefined") {
-    if (!demo) onStatus([{name:"Offline (library MQTT gagal dimuat)", ok:false}]);
-    const key = "qna-demo-" + room;
-    const chan = ("BroadcastChannel" in window) ? new BroadcastChannel(key) : null;
-    const retained = store.get(key, {});
-    setTimeout(() => { Object.entries(retained).forEach(([t, p]) => onMsg(t, p)); if (demo) onStatus([{name:"Mode demo (lokal)", ok:true}]); }, 50);
-    if (chan) chan.onmessage = e => onMsg(e.data.t, e.data.p);
-    return {
-      base,
-      pub(sub, payload, retain = true){
-        const t = base + "/" + sub, all = store.get(key, {});
-        if (retain) { if (payload) all[t] = payload; else delete all[t]; store.set(key, all); }
-        if (chan) chan.postMessage({t, p: payload});
-        onMsg(t, payload);
-      }
-    };
-  }
-  const states = BROKERS.map(u => ({name: u.replace(/^wss?:\/\//, "").split(/[:/]/)[0], ok:false}));
-  const report = () => onStatus(states);
-  const clients = BROKERS.map((url, i) => {
-    let c;
-    try {
-      c = mqtt.connect(url, { clientId: "tq_" + uid(), clean: true, reconnectPeriod: 3000, connectTimeout: 9000, keepalive: 30 });
-    } catch (e) { return null; }
-    c.on("connect", () => { states[i].ok = true; report(); c.subscribe(subs.map(x => base + "/" + x), {qos:1}); });
-    c.on("close", () => { states[i].ok = false; report(); });
-    c.on("offline", () => { states[i].ok = false; report(); });
-    c.on("error", () => {});
-    c.on("message", (topic, buf) => onMsg(topic, buf.toString()));
-    return c;
-  }).filter(Boolean);
-  report();
-  return {
-    base,
-    pub(sub, payload, retain = true){
-      const t = base + "/" + sub;
-      clients.forEach(c => c.publish(t, payload || "", {qos:1, retain}));
-      onMsg(t, payload || ""); // optimistic local update
-    },
-    anyOnline(){ return states.some(s => s.ok); }
-  };
-}
-// Only speaks up when every connection is down.
-function renderConn(el, states){
-  const ok = states.some(s => s.ok);
-  clearTimeout(el._t);
-  if (ok) { el.innerHTML = ""; return; }
-  el._t = setTimeout(() => { el.innerHTML = '<div class="conn-warn">⚠️ Koneksi terputus — mencoba lagi…</div>'; }, 4000);
-}
-
-/* ============ rekap (shared by host + admin) ============ */
-const STATUS_LABEL = {antre:"⏳ Antre", tampil:"🎤 Tampil", dijawab:"✅ Dijawab", dihapus:"🗑 Dihapus"};
-function rekapRows(active, hist, votes, liveId){
-  const rows = [];
-  active.forEach(q => rows.push({q, status: q.id === liveId ? "tampil" : "antre", votes: voteCount(votes, q.id), at: null}));
-  hist.forEach(h => { if (!active.has(h.id)) rows.push({q: h, status: h.status, votes: h.votes || 0, at: h.at}); });
-  return rows.sort((a, b) => a.q.ts - b.q.ts);
-}
-const fmtTime = ts => { try { return new Date(ts).toLocaleTimeString("id-ID", {hour:"2-digit", minute:"2-digit"}); } catch (e) { return ""; } };
-const realName = q => q.anon || !q.name.trim() ? "Anonim" : q.name.trim();
-function renderRekap(el, rows){
-  el.innerHTML = "";
-  const c = {antre:0, tampil:0, dijawab:0, dihapus:0}; rows.forEach(r => c[r.status]++);
-  const sum = document.createElement("div"); sum.className = "rk-sum";
-  sum.innerHTML = `<span>Total ${rows.length}</span><span class="pill dijawab">✅ Dijawab ${c.dijawab}</span><span class="pill antre">⏳ Antre ${c.antre + c.tampil}</span><span class="pill dihapus">🗑 Dihapus ${c.dihapus}</span>`;
-  el.append(sum);
-  if (!rows.length) { const e = document.createElement("div"); e.className = "rk-empty"; e.textContent = "Belum ada pertanyaan masuk."; el.append(e); return; }
-  const t = document.createElement("table"); t.className = "rk";
-  t.innerHTML = "<thead><tr><th>#</th><th>Jam</th><th>Nama</th><th>Pertanyaan</th><th>🔥</th><th>Status</th></tr></thead>";
-  const tb = document.createElement("tbody");
-  rows.forEach((r, i) => {
-    const tr = document.createElement("tr");
-    [String(i + 1), fmtTime(r.q.ts), realName(r.q)].forEach(v => { const td = document.createElement("td"); td.className = "n"; td.textContent = v; tr.append(td); });
-    const tq = document.createElement("td"); tq.className = "q"; tq.textContent = r.q.text; tr.append(tq);
-    const tv = document.createElement("td"); tv.className = "n"; tv.textContent = r.votes; tr.append(tv);
-    const ts = document.createElement("td"); ts.innerHTML = `<span class="pill ${r.status}">${STATUS_LABEL[r.status]}</span>`; tr.append(ts);
-    tb.append(tr);
-  });
-  t.append(tb); el.append(t);
-}
-function rekapCSV(rows){
-  const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
-  const lines = [["No","Tanggal","Jam","Nama","Pertanyaan","Vote","Status"].join(",")];
-  rows.forEach((r, i) => lines.push([i + 1, new Date(r.q.ts).toLocaleDateString("id-ID"), fmtTime(r.q.ts), realName(r.q), r.q.text, r.votes, STATUS_LABEL[r.status].replace(/^\S+ /, "")].map(esc).join(",")));
-  return "﻿" + lines.join("\r\n");
-}
-function rekapText(rows, room){
-  return `Rekap Q&A — Ruang ${room}\n` + rows.map((r, i) => `${i + 1}. [${fmtTime(r.q.ts)}] ${realName(r.q)}: ${r.q.text}  (🔥${r.votes}, ${STATUS_LABEL[r.status].replace(/^\S+ /, "")})`).join("\n");
-}
-function downloadFile(name, content, type){
-  try {
-    const url = URL.createObjectURL(new Blob([content], {type}));
-    const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  } catch (e) { toast("Gagal download, coba Salin teks", true); }
-}
-async function copyText(txt){
-  try { await navigator.clipboard.writeText(txt); toast("Tersalin ✅"); }
-  catch (e) { toast("Gagal menyalin otomatis", true); }
-}
-function parseHist(payload){
-  const q = parseQ(payload); if (!q) return null;
-  try { const o = JSON.parse(payload); q.status = o.status === "dihapus" ? "dihapus" : "dijawab"; q.votes = Number(o.votes) || 0; q.at = Number(o.at) || Date.now(); } catch (e) { return null; }
-  return q;
-}
-function parseQ(payload){
-  try {
-    const q = JSON.parse(payload);
-    if (!q || typeof q.id !== "string" || typeof q.text !== "string" || !q.text.trim()) return null;
-    return { id: q.id.slice(0, 40), text: q.text.slice(0, 280), name: (q.name || "").toString().slice(0, 40), anon: !!q.anon, ts: Number(q.ts) || Date.now() };
-  } catch (e) { return null; }
-}
-
-/* ============ sound ============ */
-let actx = null, soundOn = store.get("qna-sound", true);
-function popSound(){
-  if (!soundOn) return;
-  try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const t = actx.currentTime, len = 0.5;
-    const buf = actx.createBuffer(1, actx.sampleRate * len, actx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-    const n = actx.createBufferSource(); n.buffer = buf;
-    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(200, t + len);
-    const g = actx.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
-    n.connect(f).connect(g).connect(actx.destination); n.start(t);
-    const o = actx.createOscillator(), og = actx.createGain();
-    o.type = "square"; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(80, t + 0.18);
-    og.gain.setValueAtTime(0.25, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    o.connect(og).connect(actx.destination); o.start(t); o.stop(t + 0.22);
-  } catch (e) {}
-}
-function dingSound(){
-  if (!soundOn || !actx) return;
-  try {
-    const t = actx.currentTime;
-    [880, 1320].forEach((fr, i) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = "sine"; o.frequency.value = fr;
-      g.gain.setValueAtTime(0.0001, t + i*0.09); g.gain.exponentialRampToValueAtTime(0.18, t + i*0.09 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i*0.09 + 0.3);
-      o.connect(g).connect(actx.destination); o.start(t + i*0.09); o.stop(t + i*0.09 + 0.32); });
-  } catch (e) {}
-}
-
-/* ============ explosion fx ============ */
-function explode(el, color){
-  const r = el.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2;
-  const fx = $("#fx"), pal = [color, ...COLORS];
-  popSound();
-  document.body.classList.remove("quake"); void document.body.offsetWidth; document.body.classList.add("quake");
-  $("#flash").animate([{opacity:.55},{opacity:0}], {duration:260, easing:"ease-out"});
-  // shockwave rings
-  [0, 120].forEach((delay, i) => {
-    const ring = document.createElement("div"); ring.className = "ring";
-    const s = Math.max(r.width, r.height) * .6;
-    Object.assign(ring.style, {width:s+"px", height:s+"px", left:(cx - s/2)+"px", top:(cy - s/2)+"px", borderColor: i ? "#FF5FA2" : "#FFE94A"});
-    fx.append(ring);
-    ring.animate([{transform:"scale(.3)", opacity:1},{transform:"scale(4)", opacity:0}], {duration:700, delay, easing:"cubic-bezier(.1,.8,.3,1)", fill:"both"}).onfinish = () => ring.remove();
-  });
-  // bubble shards — pieces of the chat bubble flying out
-  const N = 46;
-  for (let i = 0; i < N; i++) {
-    const p = document.createElement("div"); p.className = "shard";
-    const w = 10 + Math.random()*34, h = 8 + Math.random()*26;
-    const sx = r.left + Math.random()*r.width, sy = r.top + Math.random()*r.height;
-    const shapes = ["50%", "6px", "50% 50% 50% 4px", "0"];
-    Object.assign(p.style, {width:w+"px", height:h+"px", left:sx+"px", top:sy+"px", background: pal[Math.floor(Math.random()*pal.length)], borderRadius: shapes[i % 4]});
-    if (i % 4 === 3) p.style.clipPath = "polygon(50% 0,100% 100%,0 100%)";
-    fx.append(p);
-    const ang = Math.atan2(sy - cy, sx - cx) + (Math.random() - .5) * .8, dist = 260 + Math.random() * 520;
-    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
-    p.animate([
-      {transform:"translate(0,0) rotate(0deg) scale(1)", opacity:1},
-      {transform:`translate(${dx*.7}px,${dy*.7 - 60}px) rotate(${(Math.random()-.5)*540}deg) scale(1)`, opacity:1, offset:.6},
-      {transform:`translate(${dx}px,${dy + 220}px) rotate(${(Math.random()-.5)*900}deg) scale(.3)`, opacity:0}
-    ], {duration:1100 + Math.random()*600, easing:"cubic-bezier(.15,.75,.35,1)", fill:"forwards"}).onfinish = () => p.remove();
-  }
-  // emojis
-  const EM = ["💥","✨","🎉","💬","⭐","🔥","🫧","💖"];
-  for (let i = 0; i < 14; i++) {
-    const e = document.createElement("div"); e.className = "emo"; e.textContent = EM[i % EM.length];
-    Object.assign(e.style, {left:(cx - 19)+"px", top:(cy - 19)+"px", fontSize:(28 + Math.random()*30)+"px"});
-    fx.append(e);
-    const ang = Math.random()*Math.PI*2, dist = 180 + Math.random()*380;
-    e.animate([
-      {transform:"translate(0,0) scale(.2)", opacity:1},
-      {transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist}px) scale(1.2) rotate(${(Math.random()-.5)*90}deg)`, opacity:1, offset:.55},
-      {transform:`translate(${Math.cos(ang)*dist*1.2}px,${Math.sin(ang)*dist*1.2 + 160}px) scale(.6)`, opacity:0}
-    ], {duration:1400, easing:"cubic-bezier(.2,.8,.3,1)", fill:"forwards"}).onfinish = () => e.remove();
-  }
-  // POP! text
-  const pow = document.createElement("div"); pow.className = "pow";
-  pow.textContent = ["POP!","BOOM!","DONE!","SLAY!"][Math.floor(Math.random()*4)];
-  fx.append(pow);
-  const pw = pow.offsetWidth, ph = pow.offsetHeight;
-  Object.assign(pow.style, {left:(cx - pw/2)+"px", top:(cy - ph/2)+"px"});
-  pow.animate([
-    {transform:"scale(.2) rotate(-20deg)", opacity:0},
-    {transform:"scale(1.25) rotate(-8deg)", opacity:1, offset:.25},
-    {transform:"scale(1) rotate(-6deg)", opacity:1, offset:.6},
-    {transform:"scale(1.5) rotate(-6deg)", opacity:0}
-  ], {duration:1200, easing:"ease-out", fill:"forwards"}).onfinish = () => pow.remove();
-}
-
-/* ============ HOST ============ */
-function startHost(room, demo, adminKey){
-  show("host");
-  const joinURL = location.origin + location.pathname + "?room=" + room + (demo ? "&demo=1" : "");
-  $("#roomCode").textContent = room;
-  try { new QRCode($("#qr"), {text: joinURL, width: 500, height: 500, colorDark:"#0E0C14", colorLight:"#FFF8EC", correctLevel: QRCode.CorrectLevel.M}); }
-  catch (e) { $("#qr").innerHTML = '<div style="padding:30px 0;font-weight:800">QR gagal dimuat — pakai kode di bawah 👇</div>'; }
-  if (demo) { $("#demoTools").style.display = "flex"; }
-  const titleKey = "qna-title-" + room, savedTitle = store.get(titleKey, null);
-  if (savedTitle) $("#eventTitle").firstChild.textContent = savedTitle;
-  $("#eventTitle").addEventListener("input", () => store.set(titleKey, $("#eventTitle").firstChild.textContent));
-
-  const qs = new Map(); // id -> {q, el}
-  const votes = new Map(), hist = new Map();
-  const adminURL = location.origin + location.pathname + "?admin=" + room + "&k=" + adminKey + (demo ? "&demo=1" : "");
-  // archive a question (answered / deleted) so the rekap survives after it leaves the board
-  function archive(id, status){
-    const o = qs.get(id); if (!o) return;
-    const h = Object.assign({}, o.q, {status, votes: voteCount(votes, id), at: Date.now()});
-    hist.set(id, h);
-    bus.pub("h/" + id, JSON.stringify(h));
-    updateLast();
-  }
-  function deleteQ(id){ if (!qs.has(id)) return; archive(id, "dihapus"); bus.pub("q/" + id, ""); }
-  /* last answered bar */
-  let lastShownId = null, lastHidden = store.get("qna-last-hidden", false);
-  const setLastHidden = v => { lastHidden = v; store.set("qna-last-hidden", v); $("#lastBar").classList.toggle("hidden", v); $("#lastEye").textContent = v ? "🙈" : "👁"; };
-  setLastHidden(lastHidden);
-  $("#lastEye").onclick = () => setLastHidden(!lastHidden);
-  function updateLast(){
-    let last = null;
-    hist.forEach(h => { if (h.status === "dijawab" && (!last || h.at > last.at)) last = h; });
-    const box = $("#lastIn");
-    box.classList.toggle("empty-last", !last);
-    if (!last || last.id === lastShownId) return;
-    lastShownId = last.id;
-    $("#lastWho").textContent = persona(last).name;
-    $("#lastTxt").textContent = last.text;
-    box.classList.remove("flash-in"); void box.offsetWidth; box.classList.add("flash-in");
-  }
-  const doneKey = "qna-done-" + room;
-  let doneCount = store.get(doneKey, 0), spotId = null, busy = false, firstLoad = true;
-  setTimeout(() => firstLoad = false, 2500);
-  const board = $("#board");
-
-  function updateStats(){
-    const empty = board.querySelector(".empty");
-    if (!qs.size && !empty) board.innerHTML = '<div class="empty"><div class="big">💬</div><h3>Belum ada pertanyaan</h3><p>Scan QR di samping, terus tanya aja!</p></div>';
-    if (qs.size && empty) empty.remove();
-  }
-  function bubbleEl(q, big){
-    const h = hash(q.id), color = COLORS[h % COLORS.length];
-    const el = document.createElement("div");
-    el.className = "bubble" + (q.text.length > 140 && !big ? " sm" : "");
-    el.style.background = color;
-    el.style.setProperty("--rot", (((h >>> 3) % 7) - 3) * 0.7 + "deg");
-    el.style.setProperty("--bd", -((h >>> 5) % 40) / 10 + "s");
-    const who = document.createElement("div"); who.className = "who";
-    const av = document.createElement("div"); av.className = "av";
-    const pz = persona(q);
-    av.textContent = pz.av; if (pz.anon) av.style.background = "#fff";
-    const meta = document.createElement("div");
-    const n = document.createElement("div"); n.className = "name"; n.textContent = pz.name;
-    const tm = document.createElement("div"); tm.className = "time"; tm.dataset.ts = q.ts; tm.textContent = timeAgo(q.ts);
-    meta.append(n, tm); who.append(av, meta);
-    const tx = document.createElement("div"); tx.className = "txt"; tx.textContent = q.text;
-    const vb = document.createElement("div"); vb.className = "votes";
-    el.append(who, tx, vb);
-    el._color = color; el._votes = vb;
-    setVotesBadge(el, voteCount(votes, q.id), false);
-    return el;
-  }
-  function setVotesBadge(el, n, bump){
-    const vb = el._votes; if (!vb) return;
-    const old = +(vb.dataset.n || 0);
-    vb.dataset.n = n; vb.textContent = "🔥 " + n; vb.classList.toggle("on", n > 0);
-    if (bump && n > old) { vb.classList.remove("bump"); void vb.offsetWidth; vb.classList.add("bump"); }
-  }
-  const ordered = () => [...qs.values()].sort((a, b) => (voteCount(votes, b.q.id) - voteCount(votes, a.q.id)) || (a.q.ts - b.q.ts));
-  /* ---------- floating balls ---------- */
-  let W = board.clientWidth, H = board.clientHeight;
-  new ResizeObserver(() => { W = board.clientWidth; H = board.clientHeight; }).observe(board);
-  const baseR = () => Math.max(34, Math.min(62, Math.sqrt((W * H) / Math.max(qs.size, 1)) * 0.24));
-  function sortBoard(){ // marks the most-voted ball + sets target sizes
-    const list = ordered(), br = baseR();
-    list.forEach((o, i) => {
-      const n = voteCount(votes, o.q.id);
-      o.tr = br + Math.min(n, 12) * br * 0.09;
-      o.el.classList.toggle("top", i === 0 && n > 0 && list.length > 1);
-    });
-  }
-  function ballBadge(o, bump){
-    const n = voteCount(votes, o.q.id), v = o.v, old = +(v.dataset.n || 0);
-    v.dataset.n = n; v.textContent = "🔥 " + n; v.classList.toggle("on", n > 0);
-    if (bump && n > old) { v.classList.remove("bump"); void v.offsetWidth; v.classList.add("bump"); }
-  }
-  function addQ(q){
-    if (qs.has(q.id)) return;
-    const h = hash(q.id), color = COLORS[h % COLORS.length];
-    const el = document.createElement("div"); el.className = "ball";
-    const orb = document.createElement("div"); orb.className = "orb"; orb.style.background = color;
-    orb.style.setProperty("--bd", -((h >>> 5) % 32) / 10 + "s");
-    orb.innerHTML = '<span class="crown">👑</span><span class="qm">?</span><span class="v"></span>';
-    el.append(orb);
-    el.addEventListener("click", () => openSpot(q.id));
-    const br = baseR(), r = br;
-    const ang = Math.random() * Math.PI * 2, sp = 45 + Math.random() * 45;
-    const o = {q, el, v: orb.querySelector(".v"), r, tr: r,
-      x: r + Math.random() * Math.max(1, W - 2 * r), y: r + Math.random() * Math.max(1, H - 2 * r),
-      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp};
-    if (!firstLoad) { el.classList.add("new"); setTimeout(() => el.classList.remove("new"), 6000); dingSound(); }
-    board.append(el);
-    qs.set(q.id, o);
-    ballBadge(o, false);
-    updateStats();
-    sortBoard();
-  }
-  function clearVotes(id){
-    const s = votes.get(id); if (!s) return;
-    [...s].forEach(v => bus.pub("v/" + id + "/" + v, ""));
-    votes.delete(id);
-  }
-  function removeQ(id, exploded){
-    const o = qs.get(id); if (!o) return;
-    qs.delete(id);
-    clearVotes(id);
-    sortBoard();
-    if (spotId === id && !exploded) closeSpot();
-    if (exploded) o.el.remove();
-    else { o.el.classList.add("leaving"); setTimeout(() => o.el.remove(), 350); }
-    updateStats();
-  }
-  let last = performance.now();
-  function tick(now){
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    const arr = [...qs.values()];
-    for (const o of arr) {
-      o.r += (o.tr - o.r) * Math.min(1, dt * 4);
-      // gentle wandering so they never settle
-      o.vx += (Math.random() - .5) * 30 * dt; o.vy += (Math.random() - .5) * 30 * dt;
-      const sp = Math.hypot(o.vx, o.vy), min = 35, max = 110;
-      if (sp > max) { o.vx *= max / sp; o.vy *= max / sp; } else if (sp < min && sp > 0) { o.vx *= min / sp; o.vy *= min / sp; }
-      o.x += o.vx * dt; o.y += o.vy * dt;
-      if (o.x < o.r) { o.x = o.r; o.vx = Math.abs(o.vx); } else if (o.x > W - o.r) { o.x = W - o.r; o.vx = -Math.abs(o.vx); }
-      if (o.y < o.r + 16) { o.y = o.r + 16; o.vy = Math.abs(o.vy); } else if (o.y > H - o.r - 6) { o.y = H - o.r - 6; o.vy = -Math.abs(o.vy); }
-    }
-    for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
-      const a = arr[i], b = arr[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, minD = a.r + b.r;
-      if (d < minD) {
-        const nx = dx / d, ny = dy / d, push = (minD - d) / 2;
-        a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
-        const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-        if (rel < 0) { a.vx += rel * nx; a.vy += rel * ny; b.vx -= rel * nx; b.vy -= rel * ny; }
-      }
-    }
-    for (const o of arr) {
-      o.el.style.width = o.el.style.height = (o.r * 2) + "px";
-      o.el.style.setProperty("--r", o.r.toFixed(1));
-      o.el.style.transform = `translate(${(o.x - o.r).toFixed(1)}px,${(o.y - o.r).toFixed(1)}px)`;
-    }
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-  function openSpot(id){
-    const o = qs.get(id); if (!o || busy) return;
-    if (spotId && spotId !== id && qs.get(spotId)) qs.get(spotId).el.style.visibility = "";
-    spotId = id;
-    const slot = $("#spotSlot"); slot.innerHTML = "";
-    slot.append(bubbleEl(o.q, true));
-    $("#spot").classList.add("on");
-    o.el.style.visibility = "hidden";
-    bus.pub("live", JSON.stringify({id}));
-    // warm up audio on user gesture
-    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
-  }
-  function closeSpot(){
-    if (spotId && qs.get(spotId)) qs.get(spotId).el.style.visibility = "";
-    spotId = null; $("#spot").classList.remove("on"); $("#spotSlot").innerHTML = "";
-    bus.pub("live", "");
-  }
-  function popSpot(){
-    if (!spotId || busy) return;
-    busy = true;
-    const id = spotId, b = $("#spotSlot .bubble");
-    b.classList.add("shake");
-    setTimeout(() => {
-      explode(b, b._color);
-      b.style.visibility = "hidden";
-      $("#spot").animate([{opacity:1},{opacity:0}], {duration:350, delay:150, fill:"forwards"}).onfinish = a => {
-        $("#spot").classList.remove("on"); a.target.cancel();
-        $("#spotSlot").innerHTML = ""; busy = false;
-      };
-      doneCount++; store.set(doneKey, doneCount);
-      archive(id, "dijawab");
-      spotId = null;
-      removeQ(id, true);
-      bus.pub("q/" + id, "");
-      bus.pub("live", "");
-    }, 430);
-  }
-  $("#btnDel").onclick = () => { if (spotId && !busy) deleteQ(spotId); };
-  $("#spotSlot").addEventListener("click", popSpot);
-  $("#btnBack").onclick = closeSpot;
-  $("#spot").addEventListener("click", e => { if (e.target.id === "spot") closeSpot(); });
-  document.addEventListener("keydown", e => {
-    if (document.activeElement && document.activeElement.isContentEditable) return;
-    if (e.code === "Space" && spotId) { e.preventDefault(); popSpot(); }
-    else if (e.code === "Escape" && spotId) closeSpot();
-    else if (e.code === "Space" && !spotId && qs.size) { e.preventDefault(); openSpot(ordered()[0].q.id); }
-  });
-  $("#btnSound").textContent = soundOn ? "🔊 Suara: ON" : "🔇 Suara: OFF";
-  $("#btnSound").onclick = () => { soundOn = !soundOn; store.set("qna-sound", soundOn); $("#btnSound").textContent = soundOn ? "🔊 Suara: ON" : "🔇 Suara: OFF"; };
-  $("#btnFull").onclick = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} };
-  const confirmBtn = (btn, label, fn) => {
-    let armed = false, t;
-    btn.addEventListener("click", () => {
-      if (!armed) { armed = true; const old = btn.textContent; btn.textContent = label; t = setTimeout(() => { armed = false; btn.textContent = old; }, 2500); btn._old = old; return; }
-      clearTimeout(t); armed = false; btn.textContent = btn._old; fn();
-    });
-  };
-  confirmBtn($("#btnClear"), "Yakin? Klik lagi", () => { [...qs.keys()].forEach(deleteQ); toast("Semua pertanyaan dihapus 🧹"); });
-  confirmBtn($("#btnNewRoom"), "Yakin? Klik lagi", () => { if (demo) location.href = location.pathname + "?host=" + randCode(6) + "&demo=1"; else createRoom(randCode(6)); });
-  $("#btnFake").onclick = () => {
-    const samples = ["Kapan jadwal shutdown berikutnya diumumkan? 🙏","Apakah ada rencana upgrade sistem monitoring substation tahun depan?","Gimana cara ngajuin ide inovasi biar bisa ikut FFIM?","Boleh dijelasin lagi soal target efisiensi energi Q1?","Kenapa SOP switching yang baru beda sama yang lama?","Ada pelatihan buat operator baru nggak bulan ini?"];
-    const anon = Math.random() < .5, names = ["Rina","Dimas","Pak Budi","Sari","Fajar"];
-    const q = {id: uid(), text: samples[Math.floor(Math.random()*samples.length)], name: anon ? "" : names[Math.floor(Math.random()*names.length)], anon, ts: Date.now()};
-    bus.pub("q/" + q.id, JSON.stringify(q));
-  };
-  $("#btnFakeVote").onclick = () => {
-    const list = [...qs.keys()]; if (!list.length) return;
-    const id = list[Math.floor(Math.random() * Math.min(list.length, 3)) + Math.max(0, list.length - 3)] || list[0];
-    bus.pub("v/" + id + "/fake" + uid(), "1");
-  };
-  $("#btnOpenGuest").onclick = () => { const a = document.createElement("a"); a.href = joinURL; a.target = "_blank"; a.rel = "noopener"; document.body.append(a); a.click(); a.remove(); };
-  setInterval(() => document.querySelectorAll(".time[data-ts]").forEach(t => t.textContent = timeAgo(+t.dataset.ts)), 30000);
-
-  const seenCtl = new Set();
-  /* rekap */
-  const rows = () => rekapRows(new Map([...qs].map(([k, o]) => [k, o.q])), hist, votes, spotId);
-  const openRekap = () => { renderRekap($("#rekapBody"), rows()); $("#rekapModal").classList.add("on"); };
-  $("#btnRekap").onclick = openRekap;
-  $("#rkClose").onclick = () => $("#rekapModal").classList.remove("on");
-  $("#rekapModal").addEventListener("click", e => { if (e.target.id === "rekapModal") $("#rekapModal").classList.remove("on"); });
-  $("#rkCsv").onclick = () => downloadFile("rekap-qna-" + room + ".csv", rekapCSV(rows()), "text/csv;charset=utf-8");
-  $("#rkCopy").onclick = () => copyText(rekapText(rows(), room));
-  /* admin link */
-  $("#adminLink").textContent = adminURL;
-  let adminQrMade = false;
-  $("#btnAdmin").onclick = () => {
-    if (!adminQrMade) { try { new QRCode($("#adminQr"), {text: adminURL, width: 360, height: 360, correctLevel: QRCode.CorrectLevel.M}); } catch (e) {} adminQrMade = true; }
-    $("#adminModal").classList.add("on");
-  };
-  $("#amClose").onclick = () => $("#adminModal").classList.remove("on");
-  $("#amCopy").onclick = () => copyText(adminURL);
-  $("#amOpen").onclick = () => { const w = window.open(adminURL, "tanyaaja_admin", "popup,width=560,height=900"); if (!w) location.href = adminURL; $("#adminModal").classList.remove("on"); };
-
-  const bus = createBus(room, demo, (topic, payload) => {
-    if (topic.endsWith("/live")) return;
-    if (topic.includes("/ctl/")) { // remote control from admin page
-      let m = null; try { m = JSON.parse(payload); } catch (e) {}
-      if (!m || !m.cmd || (m.t && Date.now() - m.t > 30000) || seenCtl.has(m.n)) return;
-      seenCtl.add(m.n);
-      if (m.cmd === "open" && m.id) openSpot(m.id);
-      else if (m.cmd === "pop") { if (spotId) popSpot(); else if (m.id && qs.has(m.id)) { openSpot(m.id); setTimeout(popSpot, 900); } }
-      else if (m.cmd === "close") closeSpot();
-      else if (m.cmd === "del" && m.id) deleteQ(m.id);
-      return;
-    }
-    if (topic.includes("/h/")) {
-      const id = topic.split("/h/")[1];
-      if (!payload) hist.delete(id); else { const h = parseHist(payload); if (h && h.id === id) hist.set(id, h); }
-      updateLast();
-      return;
-    }
-    if (topic.includes("/v/")) {
-      const qid = applyVote(votes, topic, payload);
-      const o = qid && qs.get(qid);
-      if (o) { ballBadge(o, true); sortBoard(); }
-      if (qid && spotId === qid) { const sb = $("#spotSlot .bubble"); if (sb) setVotesBadge(sb, voteCount(votes, qid), true); }
-      return;
-    }
-    const id = topic.split("/q/")[1]; if (!id) return;
-    if (!payload) { removeQ(id, false); return; }
-    const q = parseQ(payload); if (q && q.id === id) addQ(q);
-  }, states => renderConn($("#hostConn"), states), ["q/+", "live", "v/+/+", "h/+", "ctl/" + adminKey]);
-  updateStats();
-}
-
-/* ============ GUEST ============ */
-function startGuest(room, demo){
-  show("guest");
-  $("#gRoom").textContent = room;
-  const mineKey = "qna-mine-" + room;
-  let mine = store.get(mineKey, []); // [{id,text,status}]
-  let anon = store.get("qna-anon", false), lastSent = 0, liveId = null;
-  const seen = new Set(), allQ = new Map(), votes = new Map();
-  let voterId = store.get("qna-voter", null); if (!voterId) { voterId = "u" + uid(); store.set("qna-voter", voterId); }
-  let feedQueued = false;
-  const queueFeed = () => { if (feedQueued) return; feedQueued = true; requestAnimationFrame(() => { feedQueued = false; renderFeed(); }); };
-  function renderFeed(){
-    const list = $("#feedList"), mineIds = new Set(mine.map(m => m.id));
-    const items = [...allQ.values()].sort((a, b) => (voteCount(votes, b.id) - voteCount(votes, a.id)) || (a.ts - b.ts));
-    // keep the old vote-count per item to animate bumps
-    const prev = {}; list.querySelectorAll(".fq").forEach(el => prev[el.dataset.id] = +el.dataset.n);
-    list.innerHTML = "";
-    if (!items.length) { list.innerHTML = '<div class="feed-empty">Belum ada pertanyaan lain. Jadi yang pertama! ✨</div>'; return; }
-    items.forEach(q => {
-      const n = voteCount(votes, q.id), own = mineIds.has(q.id), on = votes.has(q.id) && votes.get(q.id).has(voterId);
-      const pz = persona(q);
-      const row = document.createElement("div"); row.className = "fq" + (liveId === q.id ? " live" : ""); row.dataset.id = q.id; row.dataset.n = n;
-      const body = document.createElement("div"); body.className = "body";
-      const meta = document.createElement("div"); meta.className = "meta";
-      meta.append(document.createTextNode(pz.anon ? pz.av + " " + pz.name : pz.name));
-      if (own) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "punyamu"; meta.append(t); }
-      if (liveId === q.id) { const t = document.createElement("span"); t.className = "tag live"; t.textContent = "🎤 lagi dibacain"; meta.append(t); }
-      const t = document.createElement("div"); t.className = "t"; t.textContent = q.text;
-      body.append(meta, t);
-      const btn = document.createElement("button"); btn.type = "button"; btn.className = "vote" + (on ? " on" : "");
-      btn.innerHTML = '<span class="f">🔥</span>'; btn.append(document.createTextNode(String(n)));
-      btn.setAttribute("aria-label", (on ? "Batal dukung" : "Dukung") + " pertanyaan ini, " + n + " dukungan");
-      if (own) { btn.disabled = true; btn.title = "Nggak bisa vote pertanyaan sendiri 😄"; }
-      else btn.onclick = () => {
-        const nowOn = votes.has(q.id) && votes.get(q.id).has(voterId);
-        bus.pub("v/" + q.id + "/" + voterId, nowOn ? "" : "1");
-        if (!nowOn && navigator.vibrate) navigator.vibrate(30);
-      };
-      if (prev[q.id] !== undefined && n > prev[q.id]) btn.classList.add("bump");
-      row.append(body, btn); list.append(row);
-    });
-  }
-  $("#gName").value = store.get("qna-name", "");
-  const setAnon = v => { anon = v; store.set("qna-anon", v); $("#anonToggle").classList.toggle("on", v); $("#anonToggle").setAttribute("aria-checked", v); $("#nameBox").classList.toggle("hide", v); };
-  setAnon(anon);
-  $("#anonToggle").onclick = () => setAnon(!anon);
-  $("#anonToggle").onkeydown = e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setAnon(!anon); } };
-  $("#gText").oninput = () => $("#gCount").textContent = $("#gText").value.length;
-  $("#gName").onchange = () => store.set("qna-name", $("#gName").value.trim());
-
-  function renderMine(){
-    $("#mine").style.display = mine.length ? "block" : "none";
-    const list = $("#mineList"); list.innerHTML = "";
-    [...mine].reverse().forEach(m => {
-      const st = liveId === m.id ? "live" : m.status;
-      const it = document.createElement("div"); it.className = "mine-item";
-      const tx = document.createElement("div"); tx.textContent = m.text;
-      const badge = document.createElement("span"); badge.className = "st " + st;
-      badge.textContent = st === "live" ? "🎤 Lagi dibacain" : st === "done" ? "✅ Sudah dijawab" : "⏳ Antre di layar";
-      it.append(tx, badge); list.append(it);
-    });
-    $("#liveBanner").classList.toggle("on", mine.some(m => m.id === liveId));
-  }
-  const save = () => store.set(mineKey, mine.slice(-30));
-
-  const bus = createBus(room, demo, (topic, payload) => {
-    if (topic.endsWith("/live")) {
-      let id = null; try { id = payload ? JSON.parse(payload).id : null; } catch (e) {}
-      liveId = id; renderMine(); queueFeed();
-      if (id && mine.some(m => m.id === id) && navigator.vibrate) navigator.vibrate([120, 60, 120]);
-      return;
-    }
-    if (topic.includes("/v/")) { if (applyVote(votes, topic, payload)) queueFeed(); return; }
-    const id = topic.split("/q/")[1]; if (!id) return;
-    if (payload) { const q = parseQ(payload); if (q && q.id === id) allQ.set(id, q); } else allQ.delete(id);
-    queueFeed();
-    const m = mine.find(x => x.id === id); if (!m) return;
-    if (payload) { seen.add(id); if (m.status !== "wait") { m.status = "wait"; save(); renderMine(); } }
-    else if (m.status === "wait") { m.status = "done"; save(); renderMine(); }
-  }, states => renderConn($("#guestConn"), states));
-  renderMine(); renderFeed();
-
-  $("#qForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const text = $("#gText").value.trim(), name = $("#gName").value.trim();
-    if (text.length < 3) { toast("Pertanyaannya masih kosong nih 😅", true); return; }
-    if (!anon && !name) { toast("Isi nama dulu, atau nyalain mode anonim 👻", true); $("#gName").focus(); return; }
-    const wait = 8000 - (Date.now() - lastSent);
-    if (wait > 0) { toast("Santai dulu, tunggu " + Math.ceil(wait/1000) + " detik ya ⏳", true); return; }
-    if (!demo && bus.anyOnline && !bus.anyOnline()) { toast("Koneksi belum nyambung, coba lagi sebentar 📶", true); return; }
-    const q = {id: uid(), text, name: anon ? "" : name, anon, ts: Date.now()};
-    bus.pub("q/" + q.id, JSON.stringify(q));
-    lastSent = Date.now();
-    mine.push({id: q.id, text, status: "wait"}); save(); renderMine();
-    $("#gText").value = ""; $("#gCount").textContent = "0";
-    if (name) store.set("qna-name", name);
-    toast("Terkirim! Cek layar ya 🚀");
-    const btn = $("#btnSend"); explode(btn, "#C6FF3D");
-  });
-}
-
-/* ============ ADMIN (laptop) ============ */
-function startAdmin(room, key, demo){
-  show("admin");
-  document.title = "Admin · " + room + " — Tanya Aja!";
-  $("#adRoom").textContent = room;
-  const active = new Map(), hist = new Map(), votes = new Map();
-  let liveId = null, tab = "antre", queued = false;
-  const send = (cmd, id) => bus.pub("ctl/" + key, JSON.stringify({cmd, id, t: Date.now(), n: uid()}), false);
-  const rows = () => rekapRows(active, hist, votes, liveId);
-  const render = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; draw(); }); };
-  function draw(){
-    // live card
-    const lq = liveId && active.get(liveId);
-    $("#adLive").classList.toggle("on", !!lq);
-    if (lq) { $("#adLiveTxt").textContent = lq.text; $("#adLiveWho").textContent = realName(lq) + " · " + fmtTime(lq.ts) + " · 🔥 " + voteCount(votes, lq.id); }
-    const all = rows();
-    $("#tabAntre").textContent = "💬 Antre (" + active.size + ")";
-    $("#tabRekap").textContent = "📚 Rekap semua (" + all.length + ")";
-    const list = $("#adList"); list.innerHTML = "";
-    if (tab === "rekap") { const box = document.createElement("div"); box.className = "modal-card"; box.style.cssText = "width:100%;max-height:none;padding:16px"; renderRekap(box, all); list.append(box); return; }
-    const items = [...active.values()].sort((a, b) => (voteCount(votes, b.id) - voteCount(votes, a.id)) || (a.ts - b.ts));
-    if (!items.length) { list.innerHTML = '<div class="ad-empty">Belum ada pertanyaan di antrean.</div>'; return; }
-    items.forEach(q => {
-      const card = document.createElement("div"); card.className = "ad-q" + (q.id === liveId ? " live" : "");
-      const body = document.createElement("div"); body.className = "body";
-      const meta = document.createElement("div"); meta.className = "meta";
-      const pz = persona(q);
-      meta.append(document.createTextNode((pz.anon ? pz.av + " " : "") + realName(q) + " · " + fmtTime(q.ts)));
-      const n = voteCount(votes, q.id);
-      if (n) { const f = document.createElement("span"); f.className = "fire"; f.textContent = "🔥 " + n; meta.append(f); }
-      if (q.id === liveId) { const l = document.createElement("span"); l.className = "pill tampil"; l.textContent = "🎤 Tampil"; meta.append(l); }
-      const t = document.createElement("div"); t.className = "t"; t.textContent = q.text;
-      body.append(meta, t);
-      const acts = document.createElement("div"); acts.className = "acts";
-      const b1 = document.createElement("button"); b1.className = "btn lime"; b1.textContent = q.id === liveId ? "💥 POP" : "▶ Tampilkan";
-      b1.onclick = () => send(q.id === liveId ? "pop" : "open", q.id);
-      const b2 = document.createElement("button"); b2.className = "btn paper"; b2.textContent = "🗑 Hapus";
-      let armed = false;
-      b2.onclick = () => { if (!armed) { armed = true; b2.textContent = "Yakin?"; setTimeout(() => { armed = false; b2.textContent = "🗑 Hapus"; }, 2500); return; } send("del", q.id); };
-      acts.append(b1, b2);
-      card.append(body, acts); list.append(card);
-    });
-  }
-  document.querySelectorAll(".ad-tabs button").forEach(b => b.onclick = () => {
-    tab = b.dataset.tab; document.querySelectorAll(".ad-tabs button").forEach(x => x.classList.toggle("on", x === b)); draw();
-  });
-  /* manual question (e.g. from WA / Zoom chat / paper) */
-  const addModal = $("#addModal");
-  $("#adAdd").onclick = () => { addModal.classList.add("on"); setTimeout(() => $("#addText").focus(), 50); };
-  $("#addClose").onclick = () => addModal.classList.remove("on");
-  addModal.addEventListener("click", e => { if (e.target === addModal) addModal.classList.remove("on"); });
-  $("#addForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const text = $("#addText").value.trim(), name = $("#addName").value.trim();
-    if (text.length < 3) { toast("Pertanyaannya masih kosong 😅", true); return; }
-    const q = {id: uid(), text, name, anon: !name, ts: Date.now()};
-    bus.pub("q/" + q.id, JSON.stringify(q));
-    if ($("#addNow").checked) setTimeout(() => send("open", q.id), 700);
-    $("#addText").value = ""; $("#addName").value = "";
-    addModal.classList.remove("on");
-    toast($("#addNow").checked ? "Masuk & ditampilkan 🎤" : "Masuk ke layar sebagai bola ❓");
-  });
-  $("#adPop").onclick = () => send("pop", liveId);
-  $("#adBack").onclick = () => send("close");
-  $("#adCsv").onclick = () => downloadFile("rekap-qna-" + room + ".csv", rekapCSV(rows()), "text/csv;charset=utf-8");
-  $("#adCopy").onclick = () => copyText(rekapText(rows(), room));
-  setInterval(draw, 30000);
-
-  const bus = createBus(room, demo, (topic, payload) => {
-    if (topic.endsWith("/live")) { let id = null; try { id = payload ? JSON.parse(payload).id : null; } catch (e) {} liveId = id; render(); return; }
-    if (topic.includes("/v/")) { if (applyVote(votes, topic, payload)) render(); return; }
-    if (topic.includes("/h/")) {
-      const id = topic.split("/h/")[1];
-      if (!payload) hist.delete(id); else { const h = parseHist(payload); if (h && h.id === id) hist.set(id, h); }
-      render(); return;
-    }
-    const id = topic.split("/q/")[1]; if (!id) return;
-    if (payload) { const q = parseQ(payload); if (q && q.id === id) active.set(id, q); } else active.delete(id);
-    render();
-  }, states => {
-    const ok = states.some(x => x.ok);
-    $("#adConn").innerHTML = ok ? '<span style="display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700"><i class="dot ok"></i>Terhubung</span>' : '<span class="conn-warn">⚠️ Belum terhubung</span>';
-  }, ["q/+", "live", "v/+/+", "h/+"]);
-  draw();
-}
-
-/* ============ router ============ */
-const demo = params.get("demo") === "1";
-const hostRoom = cleanCode(params.get("host")), guestRoom = cleanCode(params.get("room")), adminRoom = cleanCode(params.get("admin"));
-if (adminRoom && params.get("k")) startAdmin(adminRoom, cleanKey(params.get("k")), demo);
-else if (hostRoom) {
-  // The projector screen needs the room's secret key; without it you only get the participant page.
-  const kParam = cleanKey(params.get("k")), stored = store.get("qna-adminkey-" + hostRoom, null);
-  let key = kParam || stored;
-  if (!key && demo) key = randCode(10);
-  if (key) {
-    store.set("qna-adminkey-" + hostRoom, key);
-    if (!kParam) { try { history.replaceState(null, "", location.pathname + "?host=" + hostRoom + "&k=" + key + (demo ? "&demo=1" : "")); } catch (e) {} }
-    startHost(hostRoom, demo, key);
-  } else startGuest(hostRoom, demo);
-}
-else if (guestRoom) startGuest(guestRoom, demo);
-else {
-  show("landing");
-  $("#btnHost").onclick = () => createRoom(randCode(6));
-  const typed = () => { const c = cleanCode($("#joinCode").value); if (c.replace(/-/g, "").length < 4) { toast("Kode minimal 4 huruf/angka 🤔", true); return null; } return c; };
-  $("#btnCreate").onclick = () => { const c = typed(); if (c) createRoom(c); };
-  const join = () => { const c = typed(); if (c) location.href = location.pathname + "?room=" + c; };
-  $("#btnJoin").onclick = join;
-  $("#joinCode").onkeydown = e => { if (e.key === "Enter") join(); };
-}
-})();
-</script>
+<script type="module" src="app.js?v=1"></script>
 </body>
 </html>
