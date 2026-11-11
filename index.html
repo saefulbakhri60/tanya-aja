@@ -139,7 +139,19 @@ table.rk td.n{white-space:nowrap}
 .topbar h1 .live::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.2}}
 .hint{font-size:14px;opacity:.7}
-.board{flex:1;position:relative;overflow:hidden;margin:6px 18px 18px}
+.board{flex:1;position:relative;overflow:hidden;margin:6px 18px 8px}
+/* last answered bar */
+.lastbar{margin:0 18px 16px;display:flex;align-items:center;gap:12px;min-height:58px}
+.eye{width:42px;height:42px;flex-shrink:0;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);color:var(--paper);font-size:19px;cursor:pointer;display:grid;place-items:center;opacity:.45;transition:opacity .2s,background .2s}
+.eye:hover{opacity:1;background:rgba(255,255,255,.14)}
+.last-in{flex:1;min-width:0;display:flex;align-items:center;gap:14px;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:18px 18px 18px 6px;padding:10px 18px;transition:opacity .3s,transform .3s}
+.last-in.empty-last{display:none}
+.lastbar.hidden .last-in{opacity:0;transform:translateY(16px);pointer-events:none}
+.last-lbl{flex-shrink:0;font:800 12px 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--lime);border:2px solid var(--ink);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.last-who{flex-shrink:0;font-weight:800;font-size:14px;opacity:.7;white-space:nowrap;max-width:22%;overflow:hidden;text-overflow:ellipsis}
+.last-txt{flex:1;min-width:0;font-weight:800;font-size:18px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.last-in.flash-in{animation:last-in .6s cubic-bezier(.2,1.5,.4,1)}
+@keyframes last-in{0%{transform:translateY(30px) scale(.9);opacity:0}100%{transform:none;opacity:1}}
 .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ball{position:absolute;left:0;top:0;cursor:pointer;will-change:transform}
 .orb{width:100%;height:100%;border-radius:50%;border:3px solid var(--ink);box-shadow:5px 6px 0 var(--ink);position:relative;display:grid;place-items:center;
@@ -336,6 +348,14 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
       <h1 class="display" id="eventTitle" contenteditable="true" spellcheck="false" title="Klik untuk ganti judul">Ada yang mau ditanyain?<span class="live" contenteditable="false">LIVE</span></h1>
     </div>
     <div class="board" id="board"></div>
+    <div class="lastbar" id="lastBar">
+      <button class="eye" id="lastEye" title="Tampilkan / sembunyikan pertanyaan terakhir" aria-label="Tampilkan atau sembunyikan pertanyaan terakhir">👁</button>
+      <div class="last-in empty-last" id="lastIn">
+        <span class="last-lbl">✅ Terakhir dijawab</span>
+        <span class="last-who" id="lastWho"></span>
+        <span class="last-txt" id="lastTxt"></span>
+      </div>
+    </div>
   </main>
 </section>
 
@@ -719,8 +739,25 @@ function startHost(room, demo){
     const h = Object.assign({}, o.q, {status, votes: voteCount(votes, id), at: Date.now()});
     hist.set(id, h);
     bus.pub("h/" + id, JSON.stringify(h));
+    updateLast();
   }
   function deleteQ(id){ if (!qs.has(id)) return; archive(id, "dihapus"); bus.pub("q/" + id, ""); }
+  /* last answered bar */
+  let lastShownId = null, lastHidden = store.get("qna-last-hidden", false);
+  const setLastHidden = v => { lastHidden = v; store.set("qna-last-hidden", v); $("#lastBar").classList.toggle("hidden", v); $("#lastEye").textContent = v ? "🙈" : "👁"; };
+  setLastHidden(lastHidden);
+  $("#lastEye").onclick = () => setLastHidden(!lastHidden);
+  function updateLast(){
+    let last = null;
+    hist.forEach(h => { if (h.status === "dijawab" && (!last || h.at > last.at)) last = h; });
+    const box = $("#lastIn");
+    box.classList.toggle("empty-last", !last);
+    if (!last || last.id === lastShownId) return;
+    lastShownId = last.id;
+    $("#lastWho").textContent = persona(last).name;
+    $("#lastTxt").textContent = last.text;
+    box.classList.remove("flash-in"); void box.offsetWidth; box.classList.add("flash-in");
+  }
   const doneKey = "qna-done-" + room;
   let doneCount = store.get(doneKey, 0), spotId = null, busy = false, firstLoad = true;
   setTimeout(() => firstLoad = false, 2500);
@@ -952,6 +989,7 @@ function startHost(room, demo){
     if (topic.includes("/h/")) {
       const id = topic.split("/h/")[1];
       if (!payload) hist.delete(id); else { const h = parseHist(payload); if (h && h.id === id) hist.set(id, h); }
+      updateLast();
       return;
     }
     if (topic.includes("/v/")) {
