@@ -75,7 +75,60 @@ input.field:focus,textarea.field:focus{box-shadow:4px 4px 0 var(--pink)}
 .stat{border-radius:20px;padding:14px;color:var(--ink)}
 .stat b{font:900 34px 'Unbounded',system-ui,sans-serif;display:block;line-height:1}
 .stat span{font-size:13px;font-weight:700}
-.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:13px;opacity:.85}
+.side{position:relative}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:13px;opacity:0;transition:opacity .25s}
+.side:hover .side-foot,.side-foot:focus-within{opacity:1}
+.gear{position:absolute;left:24px;bottom:22px;font-size:20px;opacity:.28;pointer-events:none;transition:opacity .25s}
+.side:hover .gear{opacity:0}
+.side-foot .btn.wide{width:100%;font-size:15px;padding:12px 16px}
+.conn-warn{background:#ff3b5c;color:#fff;border:2px solid var(--ink);border-radius:12px;padding:8px 12px;font-weight:800;font-size:13px}
+/* modal (rekap / admin link) */
+.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(10,8,16,.8);backdrop-filter:blur(6px);padding:24px}
+.modal.on{display:flex}
+.modal-card{background:var(--paper);color:var(--ink);border-radius:var(--radius);width:min(900px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:18px 22px;border-bottom:3px solid var(--ink)}
+.modal-head h3{font:800 22px 'Unbounded',system-ui,sans-serif;margin-right:auto}
+.modal-head .btn{padding:9px 14px;font-size:13px}
+.modal-body{overflow-y:auto;padding:16px 22px 22px}
+.rk-sum{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.rk-sum span{font:800 12px 'Plus Jakarta Sans',system-ui,sans-serif;border:2px solid var(--ink);border-radius:999px;padding:4px 10px}
+table.rk{width:100%;border-collapse:collapse;font-size:14px}
+table.rk th{text-align:left;font:800 12px 'Plus Jakarta Sans',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em;padding:8px;border-bottom:2px solid var(--ink);position:sticky;top:-16px;background:var(--paper)}
+table.rk td{padding:10px 8px;border-bottom:1px solid rgba(0,0,0,.12);vertical-align:top}
+table.rk td.q{font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+table.rk td.n{white-space:nowrap}
+.pill{display:inline-block;font:800 11px 'Plus Jakarta Sans',system-ui,sans-serif;border:2px solid var(--ink);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.pill.antre{background:var(--yellow)} .pill.dijawab{background:var(--lime)} .pill.dihapus{background:#ddd} .pill.tampil{background:#ff3b5c;color:#fff}
+.rk-empty{text-align:center;opacity:.6;padding:30px}
+
+/* ---------- admin ---------- */
+#admin{flex-direction:column;min-height:100vh;padding:20px 22px 40px;gap:16px;max-width:980px;margin:0 auto;width:100%}
+.ad-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ad-head h1{font-size:26px;margin-right:auto}
+.ad-head h1 small{font:700 14px 'Plus Jakarta Sans',system-ui,sans-serif;opacity:.7;margin-left:8px}
+.ad-head .btn{padding:9px 14px;font-size:13px}
+.ad-live{border-radius:var(--radius);padding:18px 20px;background:#2a1520;border:3px solid #ff3b5c;display:none;flex-direction:column;gap:12px}
+.ad-live.on{display:flex}
+.ad-live .lbl{font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:#ff8aa3}
+.ad-live .txt{font-size:22px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.ad-live .row{display:flex;gap:10px;flex-wrap:wrap}
+.ad-tabs{display:flex;gap:8px}
+.ad-tabs button{font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;padding:9px 16px;border-radius:999px;border:2px solid var(--paper);background:transparent;color:var(--paper);cursor:pointer}
+.ad-tabs button.on{background:var(--paper);color:var(--ink)}
+.ad-list{display:flex;flex-direction:column;gap:12px}
+.ad-q{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);border-radius:20px 20px 20px 6px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start}
+.ad-q.live{outline:4px solid #ff3b5c}
+.ad-q .body{flex:1;min-width:0}
+.ad-q .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;font-weight:800;opacity:.75;margin-bottom:6px}
+.ad-q .t{font-size:17px;font-weight:700;line-height:1.38;overflow-wrap:anywhere}
+.ad-q .acts{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.ad-q .acts .btn{padding:8px 12px;font-size:13px;box-shadow:3px 3px 0 var(--ink)}
+.ad-q .fire{font:900 15px 'Unbounded',system-ui,sans-serif;background:var(--ink);color:var(--yellow);border-radius:999px;padding:2px 9px}
+.ad-empty{text-align:center;opacity:.6;padding:30px;border:2px dashed rgba(255,255,255,.2);border-radius:18px}
+.ad-note{font-size:13px;opacity:.7}
+.admin-link{word-break:break-all;font:700 13px monospace;background:#eee;border:2px solid var(--ink);border-radius:12px;padding:10px}
+#adminQr{display:flex;justify-content:center;margin:12px 0}
+#adminQr img,#adminQr canvas{width:180px!important;height:180px!important}
 .side-foot .row{display:flex;gap:8px;flex-wrap:wrap}
 .side-foot .btn{padding:9px 14px;font-size:13px}
 .conn{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -258,8 +311,11 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
       <div class="room-code" id="roomCode">------</div>
       <div class="join-url" id="joinUrl"></div>
     </div>
+    <div class="conn" id="hostConn"></div>
+    <div class="gear" aria-hidden="true">⚙️</div>
     <div class="side-foot">
-      <div class="conn" id="hostConn"></div>
+      <button class="btn lime wide" id="btnRekap">📋 Rekap pertanyaan</button>
+      <button class="btn lav wide" id="btnAdmin">🛠 Mode admin (laptop)</button>
       <div class="row">
         <button class="btn paper" id="btnSound">🔊 Suara: ON</button>
         <button class="btn paper" id="btnFull">⛶ Layar penuh</button>
@@ -294,6 +350,60 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
 </div>
 <div class="fx" id="fx"></div>
 <div class="flash" id="flash"></div>
+
+<!-- rekap modal -->
+<div class="modal" id="rekapModal">
+  <div class="modal-card brut">
+    <div class="modal-head">
+      <h3>📋 Rekap pertanyaan</h3>
+      <button class="btn paper" id="rkCopy">📄 Salin teks</button>
+      <button class="btn lime" id="rkCsv">⬇ Download CSV</button>
+      <button class="btn paper" id="rkClose">✕ Tutup</button>
+    </div>
+    <div class="modal-body" id="rekapBody"></div>
+  </div>
+</div>
+<!-- admin link modal -->
+<div class="modal" id="adminModal">
+  <div class="modal-card brut" style="width:min(520px,96vw)">
+    <div class="modal-head"><h3>🛠 Mode admin</h3><button class="btn paper" id="amClose">✕ Tutup</button></div>
+    <div class="modal-body">
+      <p style="font-weight:700;margin-bottom:10px">Buka link ini di laptop/HP kamu (bukan di layar proyektor). Dari sana kamu bisa lihat isi semua pertanyaan dan mengatur balon di proyektor.</p>
+      <div id="adminQr"></div>
+      <div class="admin-link" id="adminLink"></div>
+      <div class="row" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn lime" id="amOpen">↗ Buka di jendela baru</button>
+        <button class="btn paper" id="amCopy">📄 Salin link</button>
+      </div>
+      <p class="ad-note" style="margin-top:12px;opacity:.75">⚠️ Link ini rahasia — siapa pun yang punya link bisa mengendalikan layar. Jangan tampilkan modal ini di proyektor.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADMIN ================= -->
+<section class="view" id="admin">
+  <div class="ad-head">
+    <h1 class="display">🛠 Admin<small>Ruang <span id="adRoom">------</span></small></h1>
+    <span id="adConn"></span>
+    <button class="btn paper" id="adCopy">📄 Salin rekap</button>
+    <button class="btn lime" id="adCsv">⬇ CSV</button>
+  </div>
+  <div class="ad-live" id="adLive">
+    <div class="lbl">🎤 SEDANG TAMPIL DI PROYEKTOR</div>
+    <div class="txt" id="adLiveTxt"></div>
+    <div class="ad-note" id="adLiveWho"></div>
+    <div class="row">
+      <button class="btn lime" id="adPop">💥 POP (sudah dijawab)</button>
+      <button class="btn ghost" id="adBack">↩ Balikin jadi bola</button>
+    </div>
+  </div>
+  <div class="ad-tabs">
+    <button class="on" data-tab="antre" id="tabAntre">💬 Antre (0)</button>
+    <button data-tab="rekap" id="tabRekap">📚 Rekap semua (0)</button>
+  </div>
+  <div class="ad-list" id="adList"></div>
+  <div class="ad-note">Urutan antre: vote 🔥 terbanyak di atas. "Tampilkan" akan membuka balon di layar proyektor.</div>
+</section>
 
 <!-- ================= PESERTA ================= -->
 <section class="view" id="guest">
@@ -380,8 +490,9 @@ const BROKERS = params.get("broker") ? [params.get("broker")] : [
   "wss://broker.emqx.io:8084/mqtt",
   "wss://broker.hivemq.com:8884/mqtt"
 ];
-function createBus(room, demo, onMsg, onStatus){
+function createBus(room, demo, onMsg, onStatus, subs){
   const base = "tanyaaja/v1/" + room;
+  subs = subs || ["q/+", "live", "v/+/+"];
   if (demo || typeof mqtt === "undefined") {
     if (!demo) onStatus([{name:"Offline (library MQTT gagal dimuat)", ok:false}]);
     const key = "qna-demo-" + room;
@@ -391,10 +502,9 @@ function createBus(room, demo, onMsg, onStatus){
     if (chan) chan.onmessage = e => onMsg(e.data.t, e.data.p);
     return {
       base,
-      pub(sub, payload){
+      pub(sub, payload, retain = true){
         const t = base + "/" + sub, all = store.get(key, {});
-        if (payload) all[t] = payload; else delete all[t];
-        store.set(key, all);
+        if (retain) { if (payload) all[t] = payload; else delete all[t]; store.set(key, all); }
         if (chan) chan.postMessage({t, p: payload});
         onMsg(t, payload);
       }
@@ -407,7 +517,7 @@ function createBus(room, demo, onMsg, onStatus){
     try {
       c = mqtt.connect(url, { clientId: "tq_" + uid(), clean: true, reconnectPeriod: 3000, connectTimeout: 9000, keepalive: 30 });
     } catch (e) { return null; }
-    c.on("connect", () => { states[i].ok = true; report(); c.subscribe([base + "/q/+", base + "/live", base + "/v/+/+"], {qos:1}); });
+    c.on("connect", () => { states[i].ok = true; report(); c.subscribe(subs.map(x => base + "/" + x), {qos:1}); });
     c.on("close", () => { states[i].ok = false; report(); });
     c.on("offline", () => { states[i].ok = false; report(); });
     c.on("error", () => {});
@@ -417,23 +527,76 @@ function createBus(room, demo, onMsg, onStatus){
   report();
   return {
     base,
-    pub(sub, payload){
+    pub(sub, payload, retain = true){
       const t = base + "/" + sub;
-      clients.forEach(c => c.publish(t, payload || "", {qos:1, retain:true}));
+      clients.forEach(c => c.publish(t, payload || "", {qos:1, retain}));
       onMsg(t, payload || ""); // optimistic local update
     },
     anyOnline(){ return states.some(s => s.ok); }
   };
 }
+// Only speaks up when every connection is down.
 function renderConn(el, states){
+  const ok = states.some(s => s.ok);
+  clearTimeout(el._t);
+  if (ok) { el.innerHTML = ""; return; }
+  el._t = setTimeout(() => { el.innerHTML = '<div class="conn-warn">⚠️ Koneksi terputus — mencoba lagi…</div>'; }, 4000);
+}
+
+/* ============ rekap (shared by host + admin) ============ */
+const STATUS_LABEL = {antre:"⏳ Antre", tampil:"🎤 Tampil", dijawab:"✅ Dijawab", dihapus:"🗑 Dihapus"};
+function rekapRows(active, hist, votes, liveId){
+  const rows = [];
+  active.forEach(q => rows.push({q, status: q.id === liveId ? "tampil" : "antre", votes: voteCount(votes, q.id), at: null}));
+  hist.forEach(h => { if (!active.has(h.id)) rows.push({q: h, status: h.status, votes: h.votes || 0, at: h.at}); });
+  return rows.sort((a, b) => a.q.ts - b.q.ts);
+}
+const fmtTime = ts => { try { return new Date(ts).toLocaleTimeString("id-ID", {hour:"2-digit", minute:"2-digit"}); } catch (e) { return ""; } };
+const realName = q => q.anon || !q.name.trim() ? "Anonim" : q.name.trim();
+function renderRekap(el, rows){
   el.innerHTML = "";
-  states.forEach(s => {
-    const d = document.createElement("span");
-    d.style.cssText = "display:inline-flex;gap:6px;align-items:center";
-    d.innerHTML = '<i class="dot ' + (s.ok ? "ok" : "bad") + '"></i>';
-    d.append(document.createTextNode(s.name));
-    el.append(d);
+  const c = {antre:0, tampil:0, dijawab:0, dihapus:0}; rows.forEach(r => c[r.status]++);
+  const sum = document.createElement("div"); sum.className = "rk-sum";
+  sum.innerHTML = `<span>Total ${rows.length}</span><span class="pill dijawab">✅ Dijawab ${c.dijawab}</span><span class="pill antre">⏳ Antre ${c.antre + c.tampil}</span><span class="pill dihapus">🗑 Dihapus ${c.dihapus}</span>`;
+  el.append(sum);
+  if (!rows.length) { const e = document.createElement("div"); e.className = "rk-empty"; e.textContent = "Belum ada pertanyaan masuk."; el.append(e); return; }
+  const t = document.createElement("table"); t.className = "rk";
+  t.innerHTML = "<thead><tr><th>#</th><th>Jam</th><th>Nama</th><th>Pertanyaan</th><th>🔥</th><th>Status</th></tr></thead>";
+  const tb = document.createElement("tbody");
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    [String(i + 1), fmtTime(r.q.ts), realName(r.q)].forEach(v => { const td = document.createElement("td"); td.className = "n"; td.textContent = v; tr.append(td); });
+    const tq = document.createElement("td"); tq.className = "q"; tq.textContent = r.q.text; tr.append(tq);
+    const tv = document.createElement("td"); tv.className = "n"; tv.textContent = r.votes; tr.append(tv);
+    const ts = document.createElement("td"); ts.innerHTML = `<span class="pill ${r.status}">${STATUS_LABEL[r.status]}</span>`; tr.append(ts);
+    tb.append(tr);
   });
+  t.append(tb); el.append(t);
+}
+function rekapCSV(rows){
+  const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = [["No","Tanggal","Jam","Nama","Pertanyaan","Vote","Status"].join(",")];
+  rows.forEach((r, i) => lines.push([i + 1, new Date(r.q.ts).toLocaleDateString("id-ID"), fmtTime(r.q.ts), realName(r.q), r.q.text, r.votes, STATUS_LABEL[r.status].replace(/^\S+ /, "")].map(esc).join(",")));
+  return "﻿" + lines.join("\r\n");
+}
+function rekapText(rows, room){
+  return `Rekap Q&A — Ruang ${room}\n` + rows.map((r, i) => `${i + 1}. [${fmtTime(r.q.ts)}] ${realName(r.q)}: ${r.q.text}  (🔥${r.votes}, ${STATUS_LABEL[r.status].replace(/^\S+ /, "")})`).join("\n");
+}
+function downloadFile(name, content, type){
+  try {
+    const url = URL.createObjectURL(new Blob([content], {type}));
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) { toast("Gagal download, coba Salin teks", true); }
+}
+async function copyText(txt){
+  try { await navigator.clipboard.writeText(txt); toast("Tersalin ✅"); }
+  catch (e) { toast("Gagal menyalin otomatis", true); }
+}
+function parseHist(payload){
+  const q = parseQ(payload); if (!q) return null;
+  try { const o = JSON.parse(payload); q.status = o.status === "dihapus" ? "dihapus" : "dijawab"; q.votes = Number(o.votes) || 0; q.at = Number(o.at) || Date.now(); } catch (e) { return null; }
+  return q;
 }
 function parseQ(payload){
   try {
@@ -546,7 +709,18 @@ function startHost(room, demo){
   $("#eventTitle").addEventListener("input", () => store.set(titleKey, $("#eventTitle").firstChild.textContent));
 
   const qs = new Map(); // id -> {q, el}
-  const votes = new Map();
+  const votes = new Map(), hist = new Map();
+  const akKey = "qna-adminkey-" + room;
+  let adminKey = store.get(akKey, null); if (!adminKey) { adminKey = randCode(10); store.set(akKey, adminKey); }
+  const adminURL = location.origin + location.pathname + "?admin=" + room + "&k=" + adminKey + (demo ? "&demo=1" : "");
+  // archive a question (answered / deleted) so the rekap survives after it leaves the board
+  function archive(id, status){
+    const o = qs.get(id); if (!o) return;
+    const h = Object.assign({}, o.q, {status, votes: voteCount(votes, id), at: Date.now()});
+    hist.set(id, h);
+    bus.pub("h/" + id, JSON.stringify(h));
+  }
+  function deleteQ(id){ if (!qs.has(id)) return; archive(id, "dihapus"); bus.pub("q/" + id, ""); }
   const doneKey = "qna-done-" + room;
   let doneCount = store.get(doneKey, 0), spotId = null, busy = false, firstLoad = true;
   setTimeout(() => firstLoad = false, 2500);
@@ -672,6 +846,7 @@ function startHost(room, demo){
   requestAnimationFrame(tick);
   function openSpot(id){
     const o = qs.get(id); if (!o || busy) return;
+    if (spotId && spotId !== id && qs.get(spotId)) qs.get(spotId).el.style.visibility = "";
     spotId = id;
     const slot = $("#spotSlot"); slot.innerHTML = "";
     slot.append(bubbleEl(o.q, true));
@@ -699,13 +874,14 @@ function startHost(room, demo){
         $("#spotSlot").innerHTML = ""; busy = false;
       };
       doneCount++; store.set(doneKey, doneCount);
+      archive(id, "dijawab");
       spotId = null;
       removeQ(id, true);
       bus.pub("q/" + id, "");
       bus.pub("live", "");
     }, 430);
   }
-  $("#btnDel").onclick = () => { if (spotId && !busy) bus.pub("q/" + spotId, ""); };
+  $("#btnDel").onclick = () => { if (spotId && !busy) deleteQ(spotId); };
   $("#spotSlot").addEventListener("click", popSpot);
   $("#btnBack").onclick = closeSpot;
   $("#spot").addEventListener("click", e => { if (e.target.id === "spot") closeSpot(); });
@@ -725,7 +901,7 @@ function startHost(room, demo){
       clearTimeout(t); armed = false; btn.textContent = btn._old; fn();
     });
   };
-  confirmBtn($("#btnClear"), "Yakin? Klik lagi", () => { [...qs.keys()].forEach(id => bus.pub("q/" + id, "")); toast("Semua pertanyaan dihapus 🧹"); });
+  confirmBtn($("#btnClear"), "Yakin? Klik lagi", () => { [...qs.keys()].forEach(deleteQ); toast("Semua pertanyaan dihapus 🧹"); });
   confirmBtn($("#btnNewRoom"), "Yakin? Klik lagi", () => { location.href = location.pathname + "?host=" + randCode(6) + (demo ? "&demo=1" : ""); });
   $("#btnFake").onclick = () => {
     const samples = ["Kapan jadwal shutdown berikutnya diumumkan? 🙏","Apakah ada rencana upgrade sistem monitoring substation tahun depan?","Gimana cara ngajuin ide inovasi biar bisa ikut FFIM?","Boleh dijelasin lagi soal target efisiensi energi Q1?","Kenapa SOP switching yang baru beda sama yang lama?","Ada pelatihan buat operator baru nggak bulan ini?"];
@@ -741,8 +917,43 @@ function startHost(room, demo){
   $("#btnOpenGuest").onclick = () => { const a = document.createElement("a"); a.href = joinURL; a.target = "_blank"; a.rel = "noopener"; document.body.append(a); a.click(); a.remove(); };
   setInterval(() => document.querySelectorAll(".time[data-ts]").forEach(t => t.textContent = timeAgo(+t.dataset.ts)), 30000);
 
+  const seenCtl = new Set();
+  /* rekap */
+  const rows = () => rekapRows(new Map([...qs].map(([k, o]) => [k, o.q])), hist, votes, spotId);
+  const openRekap = () => { renderRekap($("#rekapBody"), rows()); $("#rekapModal").classList.add("on"); };
+  $("#btnRekap").onclick = openRekap;
+  $("#rkClose").onclick = () => $("#rekapModal").classList.remove("on");
+  $("#rekapModal").addEventListener("click", e => { if (e.target.id === "rekapModal") $("#rekapModal").classList.remove("on"); });
+  $("#rkCsv").onclick = () => downloadFile("rekap-qna-" + room + ".csv", rekapCSV(rows()), "text/csv;charset=utf-8");
+  $("#rkCopy").onclick = () => copyText(rekapText(rows(), room));
+  /* admin link */
+  $("#adminLink").textContent = adminURL;
+  let adminQrMade = false;
+  $("#btnAdmin").onclick = () => {
+    if (!adminQrMade) { try { new QRCode($("#adminQr"), {text: adminURL, width: 360, height: 360, correctLevel: QRCode.CorrectLevel.M}); } catch (e) {} adminQrMade = true; }
+    $("#adminModal").classList.add("on");
+  };
+  $("#amClose").onclick = () => $("#adminModal").classList.remove("on");
+  $("#amCopy").onclick = () => copyText(adminURL);
+  $("#amOpen").onclick = () => { const w = window.open(adminURL, "tanyaaja_admin", "popup,width=560,height=900"); if (!w) location.href = adminURL; $("#adminModal").classList.remove("on"); };
+
   const bus = createBus(room, demo, (topic, payload) => {
     if (topic.endsWith("/live")) return;
+    if (topic.includes("/ctl/")) { // remote control from admin page
+      let m = null; try { m = JSON.parse(payload); } catch (e) {}
+      if (!m || !m.cmd || (m.t && Date.now() - m.t > 30000) || seenCtl.has(m.n)) return;
+      seenCtl.add(m.n);
+      if (m.cmd === "open" && m.id) openSpot(m.id);
+      else if (m.cmd === "pop") { if (spotId) popSpot(); else if (m.id && qs.has(m.id)) { openSpot(m.id); setTimeout(popSpot, 900); } }
+      else if (m.cmd === "close") closeSpot();
+      else if (m.cmd === "del" && m.id) deleteQ(m.id);
+      return;
+    }
+    if (topic.includes("/h/")) {
+      const id = topic.split("/h/")[1];
+      if (!payload) hist.delete(id); else { const h = parseHist(payload); if (h && h.id === id) hist.set(id, h); }
+      return;
+    }
     if (topic.includes("/v/")) {
       const qid = applyVote(votes, topic, payload);
       const o = qid && qs.get(qid);
@@ -753,7 +964,7 @@ function startHost(room, demo){
     const id = topic.split("/q/")[1]; if (!id) return;
     if (!payload) { removeQ(id, false); return; }
     const q = parseQ(payload); if (q && q.id === id) addQ(q);
-  }, states => renderConn($("#hostConn"), states));
+  }, states => renderConn($("#hostConn"), states), ["q/+", "live", "v/+/+", "h/+", "ctl/" + adminKey]);
   updateStats();
 }
 
@@ -858,10 +1069,81 @@ function startGuest(room, demo){
   });
 }
 
+/* ============ ADMIN (laptop) ============ */
+function startAdmin(room, key, demo){
+  show("admin");
+  document.title = "Admin · " + room + " — Tanya Aja!";
+  $("#adRoom").textContent = room;
+  const active = new Map(), hist = new Map(), votes = new Map();
+  let liveId = null, tab = "antre", queued = false;
+  const send = (cmd, id) => bus.pub("ctl/" + key, JSON.stringify({cmd, id, t: Date.now(), n: uid()}), false);
+  const rows = () => rekapRows(active, hist, votes, liveId);
+  const render = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; draw(); }); };
+  function draw(){
+    // live card
+    const lq = liveId && active.get(liveId);
+    $("#adLive").classList.toggle("on", !!lq);
+    if (lq) { $("#adLiveTxt").textContent = lq.text; $("#adLiveWho").textContent = realName(lq) + " · " + fmtTime(lq.ts) + " · 🔥 " + voteCount(votes, lq.id); }
+    const all = rows();
+    $("#tabAntre").textContent = "💬 Antre (" + active.size + ")";
+    $("#tabRekap").textContent = "📚 Rekap semua (" + all.length + ")";
+    const list = $("#adList"); list.innerHTML = "";
+    if (tab === "rekap") { const box = document.createElement("div"); box.className = "modal-card"; box.style.cssText = "width:100%;max-height:none;padding:16px"; renderRekap(box, all); list.append(box); return; }
+    const items = [...active.values()].sort((a, b) => (voteCount(votes, b.id) - voteCount(votes, a.id)) || (a.ts - b.ts));
+    if (!items.length) { list.innerHTML = '<div class="ad-empty">Belum ada pertanyaan di antrean.</div>'; return; }
+    items.forEach(q => {
+      const card = document.createElement("div"); card.className = "ad-q" + (q.id === liveId ? " live" : "");
+      const body = document.createElement("div"); body.className = "body";
+      const meta = document.createElement("div"); meta.className = "meta";
+      const pz = persona(q);
+      meta.append(document.createTextNode((pz.anon ? pz.av + " " : "") + realName(q) + " · " + fmtTime(q.ts)));
+      const n = voteCount(votes, q.id);
+      if (n) { const f = document.createElement("span"); f.className = "fire"; f.textContent = "🔥 " + n; meta.append(f); }
+      if (q.id === liveId) { const l = document.createElement("span"); l.className = "pill tampil"; l.textContent = "🎤 Tampil"; meta.append(l); }
+      const t = document.createElement("div"); t.className = "t"; t.textContent = q.text;
+      body.append(meta, t);
+      const acts = document.createElement("div"); acts.className = "acts";
+      const b1 = document.createElement("button"); b1.className = "btn lime"; b1.textContent = q.id === liveId ? "💥 POP" : "▶ Tampilkan";
+      b1.onclick = () => send(q.id === liveId ? "pop" : "open", q.id);
+      const b2 = document.createElement("button"); b2.className = "btn paper"; b2.textContent = "🗑 Hapus";
+      let armed = false;
+      b2.onclick = () => { if (!armed) { armed = true; b2.textContent = "Yakin?"; setTimeout(() => { armed = false; b2.textContent = "🗑 Hapus"; }, 2500); return; } send("del", q.id); };
+      acts.append(b1, b2);
+      card.append(body, acts); list.append(card);
+    });
+  }
+  document.querySelectorAll(".ad-tabs button").forEach(b => b.onclick = () => {
+    tab = b.dataset.tab; document.querySelectorAll(".ad-tabs button").forEach(x => x.classList.toggle("on", x === b)); draw();
+  });
+  $("#adPop").onclick = () => send("pop", liveId);
+  $("#adBack").onclick = () => send("close");
+  $("#adCsv").onclick = () => downloadFile("rekap-qna-" + room + ".csv", rekapCSV(rows()), "text/csv;charset=utf-8");
+  $("#adCopy").onclick = () => copyText(rekapText(rows(), room));
+  setInterval(draw, 30000);
+
+  const bus = createBus(room, demo, (topic, payload) => {
+    if (topic.endsWith("/live")) { let id = null; try { id = payload ? JSON.parse(payload).id : null; } catch (e) {} liveId = id; render(); return; }
+    if (topic.includes("/v/")) { if (applyVote(votes, topic, payload)) render(); return; }
+    if (topic.includes("/h/")) {
+      const id = topic.split("/h/")[1];
+      if (!payload) hist.delete(id); else { const h = parseHist(payload); if (h && h.id === id) hist.set(id, h); }
+      render(); return;
+    }
+    const id = topic.split("/q/")[1]; if (!id) return;
+    if (payload) { const q = parseQ(payload); if (q && q.id === id) active.set(id, q); } else active.delete(id);
+    render();
+  }, states => {
+    const ok = states.some(x => x.ok);
+    $("#adConn").innerHTML = ok ? '<span style="display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700"><i class="dot ok"></i>Terhubung</span>' : '<span class="conn-warn">⚠️ Belum terhubung</span>';
+  }, ["q/+", "live", "v/+/+", "h/+"]);
+  draw();
+}
+
 /* ============ router ============ */
 const demo = params.get("demo") === "1";
-const hostRoom = cleanCode(params.get("host")), guestRoom = cleanCode(params.get("room"));
-if (hostRoom) startHost(hostRoom, demo);
+const hostRoom = cleanCode(params.get("host")), guestRoom = cleanCode(params.get("room")), adminRoom = cleanCode(params.get("admin"));
+if (adminRoom && params.get("k")) startAdmin(adminRoom, (params.get("k") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16), demo);
+else if (hostRoom) startHost(hostRoom, demo);
 else if (guestRoom) startGuest(guestRoom, demo);
 else {
   show("landing");
