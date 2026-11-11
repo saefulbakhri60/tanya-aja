@@ -409,6 +409,7 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
   <div class="ad-head">
     <h1 class="display">🛠 Admin<small>Ruang <span id="adRoom">------</span></small></h1>
     <span id="adConn"></span>
+    <button class="btn pink" id="adAdd">➕ Tambah pertanyaan</button>
     <button class="btn paper" id="adCopy">📄 Salin rekap</button>
     <button class="btn lime" id="adCsv">⬇ CSV</button>
   </div>
@@ -428,6 +429,25 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
   <div class="ad-list" id="adList"></div>
   <div class="ad-note">Urutan antre: vote 🔥 terbanyak di atas. "Tampilkan" akan membuka balon di layar proyektor.</div>
 </section>
+
+<!-- manual question modal (admin) -->
+<div class="modal" id="addModal">
+  <div class="modal-card brut" style="width:min(560px,96vw)">
+    <div class="modal-head"><h3>➕ Tambah pertanyaan</h3><button class="btn paper" id="addClose">✕ Tutup</button></div>
+    <form class="modal-body" id="addForm" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="lbl" for="addName" style="font-weight:800;font-size:14px;display:block;margin-bottom:6px">Nama penanya <span style="opacity:.6;font-weight:600">(kosongkan = Anonim)</span></label>
+        <input class="field" id="addName" maxlength="40" placeholder="mis. Pak Budi — via WA / chat Zoom">
+      </div>
+      <div>
+        <label class="lbl" for="addText" style="font-weight:800;font-size:14px;display:block;margin-bottom:6px">Pertanyaan</label>
+        <textarea class="field" id="addText" maxlength="280" placeholder="Tulis pertanyaannya..."></textarea>
+      </div>
+      <label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" id="addNow" style="width:20px;height:20px"> Langsung tampilkan di proyektor</label>
+      <button class="btn lime" type="submit" style="font-size:17px">Masukkan ke layar 🚀</button>
+    </form>
+  </div>
+</div>
 
 <!-- ================= PESERTA ================= -->
 <section class="view" id="guest">
@@ -1160,6 +1180,22 @@ function startAdmin(room, key, demo){
   }
   document.querySelectorAll(".ad-tabs button").forEach(b => b.onclick = () => {
     tab = b.dataset.tab; document.querySelectorAll(".ad-tabs button").forEach(x => x.classList.toggle("on", x === b)); draw();
+  });
+  /* manual question (e.g. from WA / Zoom chat / paper) */
+  const addModal = $("#addModal");
+  $("#adAdd").onclick = () => { addModal.classList.add("on"); setTimeout(() => $("#addText").focus(), 50); };
+  $("#addClose").onclick = () => addModal.classList.remove("on");
+  addModal.addEventListener("click", e => { if (e.target === addModal) addModal.classList.remove("on"); });
+  $("#addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const text = $("#addText").value.trim(), name = $("#addName").value.trim();
+    if (text.length < 3) { toast("Pertanyaannya masih kosong 😅", true); return; }
+    const q = {id: uid(), text, name, anon: !name, ts: Date.now()};
+    bus.pub("q/" + q.id, JSON.stringify(q));
+    if ($("#addNow").checked) setTimeout(() => send("open", q.id), 700);
+    $("#addText").value = ""; $("#addName").value = "";
+    addModal.classList.remove("on");
+    toast($("#addNow").checked ? "Masuk & ditampilkan 🎤" : "Masuk ke layar sebagai bola ❓");
   });
   $("#adPop").onclick = () => send("pop", liveId);
   $("#adBack").onclick = () => send("close");
