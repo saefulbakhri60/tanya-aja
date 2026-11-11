@@ -286,6 +286,11 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
 .feed-empty{text-align:center;opacity:.6;font-size:14px;padding:14px;border:2px dashed rgba(255,255,255,.2);border-radius:16px}
 .g-conn{text-align:center;font-size:12px;opacity:.6;display:flex;gap:8px;justify-content:center;align-items:center}
 
+@media (max-width:560px){
+  .join-row{flex-wrap:wrap}
+  .join-row input{flex:1 1 100%}
+  .join-row .btn{flex:1}
+}
 @media (max-width:900px){
   #host{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
   .side{width:100%;border-right:0;border-bottom:2px dashed rgba(255,255,255,.12)}
@@ -305,10 +310,10 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
     <div class="land-actions">
       <button class="btn lime" id="btnHost" style="font-size:18px;padding:18px">🖥️ Mulai sesi baru (buka di layar proyektor)</button>
       <div class="join-row">
-        <input class="field" id="joinCode" placeholder="Kode ruang, mis. K7QX2P" maxlength="8" autocomplete="off" style="text-transform:uppercase">
-        <button class="btn pink" id="btnJoin">Gabung →</button>
+        <input class="field" id="joinCode" placeholder="Kode ruang, mis. U-TALK" maxlength="12" autocomplete="off" style="text-transform:uppercase">
+        <button class="btn lav" id="btnCreate" title="Buat sesi dengan kode ini">🖥️ Buat</button>
+        <button class="btn pink" id="btnJoin" title="Gabung sebagai peserta">Gabung →</button>
       </div>
-      <button class="btn ghost" id="btnDemo">👀 Coba mode demo (tanpa internet)</button>
     </div>
   </div>
 </section>
@@ -321,7 +326,6 @@ textarea.field{min-height:130px;resize:none;line-height:1.4}
       <div id="qr"></div>
       <div class="scan">SCAN BUAT NANYA</div>
       <div class="room-code" id="roomCode">------</div>
-      <div class="join-url" id="joinUrl"></div>
     </div>
     <div class="conn" id="hostConn"></div>
     <div class="gear" aria-hidden="true">⚙️</div>
@@ -497,7 +501,14 @@ function applyVote(votes, topic, payload){
 }
 const voteCount = (votes, id) => votes.has(id) ? votes.get(id).size : 0;
 const timeAgo = ts => { const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 45) return "baru aja"; if (s < 3600) return Math.round(s/60) + " mnt lalu"; return Math.round(s/3600) + " jam lalu"; };
-const cleanCode = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+const cleanCode = s => (s || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 12);
+const cleanKey = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+// Creating a room = getting its secret key on this device (re-uses the key if this device made it before).
+function createRoom(code){
+  let k = store.get("qna-adminkey-" + code, null);
+  if (!k) { k = randCode(10); store.set("qna-adminkey-" + code, k); }
+  location.href = location.pathname + "?host=" + code + "&k=" + k;
+}
 function show(id){ document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === id)); }
 let toastT;
 function toast(msg, err){ const t = $("#toast"); t.textContent = msg; t.classList.toggle("err", !!err); t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2800); }
@@ -716,11 +727,10 @@ function explode(el, color){
 }
 
 /* ============ HOST ============ */
-function startHost(room, demo){
+function startHost(room, demo, adminKey){
   show("host");
   const joinURL = location.origin + location.pathname + "?room=" + room + (demo ? "&demo=1" : "");
   $("#roomCode").textContent = room;
-  $("#joinUrl").textContent = joinURL.replace(/^https?:\/\//, "");
   try { new QRCode($("#qr"), {text: joinURL, width: 500, height: 500, colorDark:"#0E0C14", colorLight:"#FFF8EC", correctLevel: QRCode.CorrectLevel.M}); }
   catch (e) { $("#qr").innerHTML = '<div style="padding:30px 0;font-weight:800">QR gagal dimuat — pakai kode di bawah 👇</div>'; }
   if (demo) { $("#demoTools").style.display = "flex"; }
@@ -730,8 +740,6 @@ function startHost(room, demo){
 
   const qs = new Map(); // id -> {q, el}
   const votes = new Map(), hist = new Map();
-  const akKey = "qna-adminkey-" + room;
-  let adminKey = store.get(akKey, null); if (!adminKey) { adminKey = randCode(10); store.set(akKey, adminKey); }
   const adminURL = location.origin + location.pathname + "?admin=" + room + "&k=" + adminKey + (demo ? "&demo=1" : "");
   // archive a question (answered / deleted) so the rekap survives after it leaves the board
   function archive(id, status){
@@ -939,7 +947,7 @@ function startHost(room, demo){
     });
   };
   confirmBtn($("#btnClear"), "Yakin? Klik lagi", () => { [...qs.keys()].forEach(deleteQ); toast("Semua pertanyaan dihapus 🧹"); });
-  confirmBtn($("#btnNewRoom"), "Yakin? Klik lagi", () => { location.href = location.pathname + "?host=" + randCode(6) + (demo ? "&demo=1" : ""); });
+  confirmBtn($("#btnNewRoom"), "Yakin? Klik lagi", () => { if (demo) location.href = location.pathname + "?host=" + randCode(6) + "&demo=1"; else createRoom(randCode(6)); });
   $("#btnFake").onclick = () => {
     const samples = ["Kapan jadwal shutdown berikutnya diumumkan? 🙏","Apakah ada rencana upgrade sistem monitoring substation tahun depan?","Gimana cara ngajuin ide inovasi biar bisa ikut FFIM?","Boleh dijelasin lagi soal target efisiensi energi Q1?","Kenapa SOP switching yang baru beda sama yang lama?","Ada pelatihan buat operator baru nggak bulan ini?"];
     const anon = Math.random() < .5, names = ["Rina","Dimas","Pak Budi","Sari","Fajar"];
@@ -1180,14 +1188,25 @@ function startAdmin(room, key, demo){
 /* ============ router ============ */
 const demo = params.get("demo") === "1";
 const hostRoom = cleanCode(params.get("host")), guestRoom = cleanCode(params.get("room")), adminRoom = cleanCode(params.get("admin"));
-if (adminRoom && params.get("k")) startAdmin(adminRoom, (params.get("k") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16), demo);
-else if (hostRoom) startHost(hostRoom, demo);
+if (adminRoom && params.get("k")) startAdmin(adminRoom, cleanKey(params.get("k")), demo);
+else if (hostRoom) {
+  // The projector screen needs the room's secret key; without it you only get the participant page.
+  const kParam = cleanKey(params.get("k")), stored = store.get("qna-adminkey-" + hostRoom, null);
+  let key = kParam || stored;
+  if (!key && demo) key = randCode(10);
+  if (key) {
+    store.set("qna-adminkey-" + hostRoom, key);
+    if (!kParam) { try { history.replaceState(null, "", location.pathname + "?host=" + hostRoom + "&k=" + key + (demo ? "&demo=1" : "")); } catch (e) {} }
+    startHost(hostRoom, demo, key);
+  } else startGuest(hostRoom, demo);
+}
 else if (guestRoom) startGuest(guestRoom, demo);
 else {
   show("landing");
-  $("#btnHost").onclick = () => location.href = location.pathname + "?host=" + randCode(6);
-  $("#btnDemo").onclick = () => location.href = location.pathname + "?host=DEMO01&demo=1";
-  const join = () => { const c = cleanCode($("#joinCode").value); if (c.length < 4) { toast("Kodenya kurang lengkap 🤔", true); return; } location.href = location.pathname + "?room=" + c; };
+  $("#btnHost").onclick = () => createRoom(randCode(6));
+  const typed = () => { const c = cleanCode($("#joinCode").value); if (c.replace(/-/g, "").length < 4) { toast("Kode minimal 4 huruf/angka 🤔", true); return null; } return c; };
+  $("#btnCreate").onclick = () => { const c = typed(); if (c) createRoom(c); };
+  const join = () => { const c = typed(); if (c) location.href = location.pathname + "?room=" + c; };
   $("#btnJoin").onclick = join;
   $("#joinCode").onkeydown = e => { if (e.key === "Enter") join(); };
 }
